@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="maps_key_missing_title">Map unavailable</string>
+    <string name="maps_key_missing_body">MAPS_API_KEY is not set, so the map cannot load. Add it to local.properties and rebuild (see README). Tracking and recording still work.</string>
+    <string name="point_address_unavailable">Address not available yet</string>
+    <string name="point_recorded_at">Recorded %1$s</string>
+    <string name="action_close">Close</string>
+</resources>
