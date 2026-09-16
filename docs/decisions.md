@@ -115,9 +115,15 @@ says how it was verified:
   `setMinUpdateDistanceMeters`, which is a battery hint, not a guarantee.
 - **Why persisted:** the anchor is simply the last row in Room, so the rule survives process death and
   a route reset with no extra state to keep in sync.
-- **Evidence:** Measured. `DistanceGateTest` (11 tests) and `RecordFixUseCaseTest` (9 tests). The use-case
-  tests feed fix sequences, because gate tests receive the anchor as input and cannot catch a caller
-  choosing the wrong one. See the mutation checks in the verification log.
+- **Evidence:** Measured at the domain level. `DistanceGateTest` (11 tests) and `RecordFixUseCaseTest`
+  (9 tests). The use-case tests feed fix sequences, because gate tests receive the anchor as input and
+  cannot catch a caller choosing the wrong one. See the mutation checks in the verification log.
+- **Known gap, the production query:** the use-case tests run against a fake repository, so the SQL
+  that actually selects the anchor, `RouteDao.last()`, is not covered by any test. Measured in an
+  independent review: changing `ORDER BY id DESC` to `ASC` compiled, and all 25 tests still passed.
+  In the app, that bug would anchor every fix to the route's start, so once the user is 100 m away,
+  every update would add a marker. Planned: an instrumented in-memory Room test for `last()` and
+  `deleteAll()`, then the same mutation repeated to show that the test catches it.
 
 ### D11. The first accurate fix is the start marker
 
@@ -156,7 +162,12 @@ says how it was verified:
 - **Rejected:** a Room `@Transaction`. It would work, but it moves the rule into `:data`, where it can only
   be tested with a database.
 - **Why reset does not take the lock:** reset is a single atomic delete. Whether it lands before, during
-  or after a record call, the result matches one of the two serial orders.
+  or after a record call, the stored route matches one of the two serial orders.
+- **Constraint this creates:** the *returned* value can be stale. In the order read → write → reset, the
+  use case returns `Recorded(point)` for a row that no longer exists. Anything acting on that point later,
+  such as writing its resolved address, must be a plain `UPDATE route_points SET address = ? WHERE id = ?`,
+  which affects zero rows once the point is gone. An `@Insert` or `@Upsert` there would bring a reset
+  point back to life.
 - **Evidence:** Measured. `concurrent fixes cannot both pass against the same anchor` fails when the lock
   is removed (mutation M3). The fake repository yields at each read and write, so the coroutines genuinely
   interleave.
@@ -189,5 +200,6 @@ says how it was verified:
 | 2026-09-16 | Mutation M2: ignore distance | Failed 3 tests (just under 100 m, slow walk, GPS jitter) |
 | 2026-09-16 | Independent review session | Found that the camera never centered on a route recorded after a fresh install; fixed in `1888b20`. Also found that gate tests could not catch a wrong anchor, which led to D14 |
 | 2026-09-16 | Mutation M3: remove the write lock | Failed exactly the concurrency test |
-| 2026-09-16 | Mutation M4: anchor on the first point | First attempt invalid: the mutation did not compile and the report showed stale test XML. Repeated after deleting old results: failed `anchor advances only when a point is recorded` and the slow-walk test |
+| 2026-09-16 | Mutation M4: anchor on the first point | First attempt invalid: the mutation did not compile and the report showed stale test XML. Repeated after deleting old results: failed `anchor advances only when a point is recorded` and the slow-walk test. **Scope: use-case layer only.** It proves the use case asks for the last point, not that the Room query returns it; see the next review row |
 | 2026-09-16 | `:core:test` after restoring | 25 / 25 passed, from freshly generated XML |
+| 2026-09-16 | Second independent review | Confirmed 25 / 25 and the build. Removing the lock failed the concurrency test in 5 of 5 runs, so it is deterministic. Forcing the anchor to null failed 6 tests. **Found a gap:** `RouteDao.last()` changed from `DESC` to `ASC` still passed 25 / 25, because no test reaches the real DAO (D10). Also found that a `Recorded` result can point at a row already deleted by reset (D14) |

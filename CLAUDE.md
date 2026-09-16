@@ -26,7 +26,8 @@ every 100 m, shows the address of a tapped marker, and keeps the route across re
 
 - `:core`: pure Kotlin/JVM. Domain model, repository contracts, `DistanceGate`, `RecordFixUseCase`.
   No Android imports, ever; the build enforces this.
-- `:data`: Room, DataStore, fused location, geocoder, the tracking foreground service, `dataModule`.
+- `:data`: Room route storage and `dataModule`. Not yet implemented: DataStore session, fused location,
+  geocoder, and the tracking foreground service.
 - `:feature:tracking`: Compose UI and the MVI `TrackingViewModel`. Depends on `:core` only.
 - `:app`: `Application` (starts Koin), `MainActivity`, API key wiring. The only module that sees everything.
 
@@ -37,6 +38,10 @@ every 100 m, shows the address of a tapped marker, and keeps the route across re
 - **All recording goes through the single `RecordFixUseCase` instance.** Its mutex makes
   read-anchor → evaluate → write atomic. Keep it a Koin `single`.
 - **Fixes with missing or poor accuracy are rejected before the anchor check** (D12).
+- **Write an address only with `UPDATE route_points SET address = ? WHERE id = ?`.** A `Recorded` point may
+  already have been deleted by a concurrent reset; an insert or upsert would bring it back (D14).
+- `RouteDao.last()` is the production anchor query and only an instrumented test can cover it. Unit
+  tests use a fake repository (D10).
 - **Kotlin stays at 2.4.20 or later.** Do not apply `org.jetbrains.kotlin.android`; AGP 9 has built-in Kotlin (D2).
 - A Compose library module needs both the `kotlin.compose` plugin and `buildFeatures.compose` (D3).
 
