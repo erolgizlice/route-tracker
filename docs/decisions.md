@@ -95,7 +95,12 @@ says how it was verified:
 - **Decision:** `startKoin` runs in `RouteTrackerApp.onCreate`.
 - **Rationale:** when the system restarts a sticky service, it creates the process without any
   Activity. The service still needs its dependencies.
-- **Evidence:** Reasoned. Device check pending: `adb shell am kill` while tracking in the background.
+- **Evidence:** Reasoned. Device check pending: kill the process while tracking, on an emulator with a
+  Google APIs image, by running `adb root` and then `adb shell kill -9 <pid>`. `adb shell am kill` is not a
+  valid test here: it only kills processes that are safe to kill, which excludes a process running a
+  foreground service. The author's own app, measured on a single Android 16 device, could not bring a
+  restarted service back as a location foreground service. This project must reproduce that before
+  claiming it; see D17, to be written with the service.
 
 ### D9. The route is ordered by insertion id, not by timestamp
 
@@ -203,3 +208,4 @@ says how it was verified:
 | 2026-09-16 | Mutation M4: anchor on the first point | First attempt invalid: the mutation did not compile and the report showed stale test XML. Repeated after deleting old results: failed `anchor advances only when a point is recorded` and the slow-walk test. **Scope: use-case layer only.** It proves the use case asks for the last point, not that the Room query returns it; see the next review row |
 | 2026-09-16 | `:core:test` after restoring | 25 / 25 passed, from freshly generated XML |
 | 2026-09-16 | Second independent review | Confirmed 25 / 25 and the build. Removing the lock failed the concurrency test in 5 of 5 runs, so it is deterministic. Forcing the anchor to null failed 6 tests. **Found a gap:** `RouteDao.last()` changed from `DESC` to `ASC` still passed 25 / 25, because no test reaches the real DAO (D10). Also found that a `Recorded` result can point at a row already deleted by reset (D14) |
+| 2026-09-16 | `verify-claim` skill, first run on this repo | Old results deleted, then confirmed 0 remained. `4 actionable tasks: 4 executed`, 0 FROM-CACHE, 25 / 25 from fresh XML. Positive controls: with no result files the script reports none; with a start time after the run it marks all 3 files stale and exits 1. Mutation M1 repeated: compiled, failed exactly the limit test, restored with matching md5, 25 / 25 again |
