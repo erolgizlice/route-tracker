@@ -1,0 +1,18 @@
+# Gradle / build output
+.gradle/
+.kotlin/
+build/
+
+# Local machine configuration — holds sdk.dir and MAPS_API_KEY, never committed
+local.properties
+
+# IDE
+.idea/
+*.iml
+captures/
+
+# OS
+.DS_Store
+
+# Claude Code local permissions (machine-specific paths)
+.claude/settings.local.json
