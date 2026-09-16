@@ -4,7 +4,6 @@ import com.erolgizlice.routetracker.core.route.DistanceGate.Decision
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.math.cos
 
 class DistanceGateTest {
 
@@ -12,8 +11,8 @@ class DistanceGateTest {
 
     private val origin = RoutePoint(
         id = 1,
-        latitude = 41.0082,
-        longitude = 28.9784,
+        latitude = ORIGIN_LATITUDE,
+        longitude = ORIGIN_LONGITUDE,
         recordedAtEpochMillis = 0,
         address = null,
     )
@@ -83,17 +82,5 @@ class DistanceGateTest {
         val decisions = jitter.map { (north, east) -> gate.evaluate(origin, fixAt(north, east, accuracy = 20f)) }
 
         assertTrue(decisions.all { it is Decision.RejectTooClose })
-    }
-
-    /** A fix displaced from [origin] by the given meters (small-offset approximation, exact enough here). */
-    private fun fixAt(north: Double, east: Double, accuracy: Float? = 10f): LocationFix {
-        val metersPerDegreeLatitude = EARTH_MEAN_RADIUS_METERS * Math.PI / 180
-        val metersPerDegreeLongitude = metersPerDegreeLatitude * cos(Math.toRadians(origin.latitude))
-        return LocationFix(
-            latitude = origin.latitude + north / metersPerDegreeLatitude,
-            longitude = origin.longitude + east / metersPerDegreeLongitude,
-            accuracyMeters = accuracy,
-            timestampEpochMillis = 0,
-        )
     }
 }
