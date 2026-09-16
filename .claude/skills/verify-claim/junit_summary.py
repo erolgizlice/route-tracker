@@ -18,12 +18,20 @@ def main() -> int:
     if len(sys.argv) < 2:
         print(__doc__)
         return 2
-    started = float(sys.argv[1])
+    try:
+        started = float(sys.argv[1])
+    except ValueError:
+        print(
+            f"INVALID RUN START {sys.argv[1]!r}: capture START=$(date +%s) before the Gradle run, "
+            "in the same Bash call as this script"
+        )
+        return 2
     root = sys.argv[2] if len(sys.argv) > 2 else "."
 
+    # JVM unit tests only. Instrumented test results are written elsewhere (see SKILL.md, Scope).
     files = sorted(glob.glob(os.path.join(root, "**/build/test-results/**/TEST-*.xml"), recursive=True))
     if not files:
-        print("NO RESULT FILES: the tests did not run, or wrote their results elsewhere")
+        print("NO RESULT FILES under build/test-results: the tests did not run, or wrote their results elsewhere")
         return 1
 
     totals = dict.fromkeys(COUNTS, 0)

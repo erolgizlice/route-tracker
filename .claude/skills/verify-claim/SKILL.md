@@ -9,6 +9,15 @@ A green build or a zero count is not evidence until you have shown the check cou
 Every step below exists because skipping it produced a false result in this project; see the
 verification log in `docs/decisions.md`.
 
+**Run steps 1–4 in a single Bash call.** In Claude Code every Bash call starts a new shell, so `$START`
+and `$LOG` do not carry over to the next call.
+
+**Scope: JVM unit tests only** (`build/test-results`). Instrumented `connectedAndroidTest` results are
+written somewhere else, and that location has not been verified yet. On the first instrumented run,
+find where the XML lands, extend step 1 and the glob in `junit_summary.py` to cover it, and record it
+in the verification log. Until then, no result from this skill applies to instrumented tests, and
+that includes mutation checks.
+
 ## 1. Delete old results
 
 Stale JUnit XML once reported the previous run's failure as the current result.
