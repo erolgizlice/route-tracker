@@ -68,12 +68,18 @@ internal fun TrackingScreen(
     }
     // Saveable: a rotation must not yank the camera back after the user has panned away.
     var hasCenteredOnRoute by rememberSaveable { mutableStateOf(false) }
+    val hasRoute = state.points.isNotEmpty()
 
-    LaunchedEffect(state.isLoading) {
-        val last = state.points.lastOrNull()
-        if (!state.isLoading && last != null && !hasCenteredOnRoute) {
-            hasCenteredOnRoute = true
-            cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(last.latLng, RouteZoom))
+    // Keyed on route presence, not only on loading: on a fresh install the route is still empty when
+    // loading finishes, and the first recorded point must center the camera when it arrives later.
+    LaunchedEffect(state.isLoading, hasRoute) {
+        when {
+            state.isLoading -> Unit
+            !hasRoute -> hasCenteredOnRoute = false // after a reset, center on the next route again
+            !hasCenteredOnRoute -> {
+                hasCenteredOnRoute = true
+                cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(state.points.last().latLng, RouteZoom))
+            }
         }
     }
 
