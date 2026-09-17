@@ -245,7 +245,9 @@ private fun RouteMap(
     }
     // What "started" means for this screen: the route is on screen and the map has finished rendering.
     // Without this, `am start -W` and startup profilers stop at the first frame, which is an empty map.
-    ReportDrawnWhen { isMapLoaded }
+    // The cap counts too: offline with an empty tile cache the map never reports itself loaded, and a
+    // screen that never becomes "fully drawn" is worse than one that reports the moment it settles.
+    ReportDrawnWhen { isMapLoaded || placeholderTimedOut }
 
     // On a fresh install, and after a reset, the route is empty here and its first point arrives later.
     LaunchedEffect(points.isNotEmpty()) {
