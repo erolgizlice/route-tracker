@@ -435,6 +435,41 @@ says how it was verified:
   after it, so no tiles were saved. What changed is the first frame (246 ms to 145 ms on the S23, 859 ms
   to 455 ms on the emulator) and that the city view is never on screen.
 
+### D25. The map runs to the bottom edge, behind a translucent card
+
+- **Decision:** the bottom overlay reaches the bottom edge of the screen, so the map is not cut off by a
+  strip above the navigation bar. Three parts: `window.isNavigationBarContrastEnforced = false`, so the
+  system stops painting a scrim behind the bar; the overlay takes only the horizontal and top insets, and
+  the card pads its **own content** by the navigation bar inset, which keeps the buttons above the gesture
+  bar or the three buttons; and the card's background is the surface colour at 85 % with a 24 dp fade above
+  it, so the map meets it softly instead of at a hard edge.
+- **Rejected: a real blur behind the card.** The map renders into its own surface, which a Compose
+  `Modifier.blur` cannot sample - it would blur an empty composable. The only way to get a blurred map
+  would be to blur the whole map view, which would blur the route and the markers with it.
+- **Rejected: moving the Google logo.** The SDK pins it to the bottom edge of the map view. The map's
+  bottom `contentPadding` lifts it, which is what this screen does, but padding also shrinks the area the
+  camera can use, and the Maps Platform terms require the attribution to stay visible. So the logo stays
+  where the SDK puts it, above the card.
+- **Evidence:** Measured on both devices (verification log, "Edge-to-edge bottom card").
+  - **Before:** on the API 36 emulator the map already ran behind the gesture bar - the rows from y=2240 to
+    the bottom vary across the width (mean deviation 11-21 of 255). On the Galaxy S23, with three-button
+    navigation, the same rows were a flat near-white layer, RGB (252, 253, 252) with a deviation of 1-9:
+    the system's contrast scrim.
+  - **After:** both devices show map pixels in that region (deviation 5-12), and nothing else moved.
+  - **Text contrast**, measured inside the bounds `uiautomator` reports for the two text lines: 19.2 : 1
+    against the card's background. Where a dark map label shows through the translucent card, the darkest
+    background found is RGB (202, 196, 208), which is 10.0 : 1 against `onSurface` #1D1B20 - above the
+    4.5 : 1 target with room to spare.
+  - **The Google logo stays above the card:** its lowest pixel is y=1820 on the S23 and y=1828 on the
+    emulator, while the card starts at about y=2023 and y=2064. The map's bottom `contentPadding` is still
+    measured from the overlay's height, so the logo moves with it.
+  - **Tap targets:** on the S23, Start reacted to five of five taps and Reset opened its dialog five times
+    of five, with the buttons ending at y=2131 and the bar's inset starting 167 px below them. On the
+    emulator, Start, Stop and Reset each answered five of five. Stop was not tapped on the phone: tracking
+    there would record the tester's real location.
+  - Rotation to landscape, the keyless build (the "Map unavailable" card and the route count are still
+    there, no crash) and the placeholder path were re-checked after the change.
+
 ---
 
 ## Verification log
@@ -494,3 +529,4 @@ says how it was verified:
 | 2026-09-17 | Tests after the final round | `verify-claim`: 32 JVM tests (11 + 5 + 9 + 7) and 6 instrumented tests on the API 36 emulator, 38 / 38 from freshly generated XML, 73 of 73 tasks executed, 0 from cache |
 | 2026-09-17 | Clean clone without a key | A clone of `polish/markers-startup` at 56979c8 with only `sdk.dir` in `local.properties`: BUILD SUCCESSFUL, 107 of 107 tasks executed, `HAS_MAPS_API_KEY = false`, 32 JVM tests passed, and `git status --porcelain` empty. `docs/media` is absent from the clone, because the media is not committed yet |
 | 2026-09-17 | The marker count while the route is read | Measured frame by frame in clip 2 rather than estimated: the crop of the count line matches "0 markers" from 21.75 s to 22.30 s and "7 markers" from 22.30 s, so the wrong count is on screen for 0.55 s, after 0.65 s of launch screen. A review estimate of about 2 s covered the whole reopen, from the tap to the route on screen (D24) |
+| 2026-09-18 | Edge-to-edge bottom card | Before: emulator rows y=2240-2339 varied across the width (deviation 11-21), so the map already ran behind the gesture bar; the S23's same rows were a flat RGB (252, 253, 252) contrast scrim (deviation 1-9). After turning the scrim off and extending the overlay: both devices show map pixels there. Contrast 19.2 : 1 on the card's text and 10.0 : 1 at the darkest point where the map shows through; the Google logo's lowest pixel stays about 200 px above the card; Start and Reset 5 / 5 on the S23, Start, Stop and Reset 5 / 5 each on the emulator; rotation, the keyless build and the placeholder path unchanged (D25) |

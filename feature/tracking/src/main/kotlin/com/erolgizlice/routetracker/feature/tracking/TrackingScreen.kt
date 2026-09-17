@@ -19,11 +19,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -47,6 +49,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
@@ -55,6 +58,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.Lifecycle
@@ -91,6 +95,9 @@ private const val RouteZoom = 16f
  * empty screen, and the Google logo, for good (D24).
  */
 private const val MapPlaceholderTimeoutMillis = 3_000L
+
+/** The bottom card lets the map through, because it now covers part of it (D25). */
+private const val CardAlpha = 0.85f
 
 @Composable
 fun TrackingRoute(
@@ -187,22 +194,45 @@ internal fun TrackingScreen(
             }
         }
 
-        val bottomModifier = Modifier
-            .align(Alignment.BottomCenter)
-            .onSizeChanged { size -> bottomOverlayHeight = with(density) { size.height.toDp() } }
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(16.dp)
+        // The bottom overlay reaches the bottom edge, so the map keeps going behind the navigation bar
+        // instead of stopping at a strip. The navigation bar inset is added inside the card instead, which
+        // keeps its buttons above the gesture bar or the three buttons (D25).
+        val cardColor = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = CardAlpha)
         val selectedPoint = state.selectedPoint
-        if (selectedPoint != null) {
-            PointDetailsCard(
-                point = selectedPoint,
-                addressStatus = state.addressStatus,
-                onRetry = { onIntent(TrackingIntent.RetryAddressClicked) },
-                onDismiss = { onIntent(TrackingIntent.SelectionDismissed) },
-                modifier = bottomModifier,
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .onSizeChanged { size -> bottomOverlayHeight = with(density) { size.height.toDp() } }
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
+                .fillMaxWidth(),
+        ) {
+            // A short fade, so the map does not meet the translucent card at a hard edge.
+            Spacer(
+                Modifier
+                    .fillMaxWidth()
+                    .height(24.dp)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, cardColor))),
             )
-        } else {
-            ControlBar(state = state, onIntent = onIntent, modifier = bottomModifier)
+            val cardModifier = Modifier.padding(horizontal = 16.dp)
+            if (selectedPoint != null) {
+                PointDetailsCard(
+                    point = selectedPoint,
+                    addressStatus = state.addressStatus,
+                    containerColor = cardColor,
+                    bottomPadding = safeDrawing.calculateBottomPadding(),
+                    onRetry = { onIntent(TrackingIntent.RetryAddressClicked) },
+                    onDismiss = { onIntent(TrackingIntent.SelectionDismissed) },
+                    modifier = cardModifier,
+                )
+            } else {
+                ControlBar(
+                    state = state,
+                    onIntent = onIntent,
+                    containerColor = cardColor,
+                    bottomPadding = safeDrawing.calculateBottomPadding(),
+                    modifier = cardModifier,
+                )
+            }
         }
     }
 
@@ -318,12 +348,18 @@ private fun RouteMap(
 }
 
 @Composable
-private fun ControlBar(state: TrackingState, onIntent: (TrackingIntent) -> Unit, modifier: Modifier = Modifier) {
-    Card(modifier = modifier.fillMaxWidth()) {
+private fun ControlBar(
+    state: TrackingState,
+    onIntent: (TrackingIntent) -> Unit,
+    containerColor: Color,
+    bottomPadding: Dp,
+    modifier: Modifier = Modifier,
+) {
+    Card(colors = CardDefaults.cardColors(containerColor = containerColor), modifier = modifier.fillMaxWidth()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(16.dp).padding(bottom = bottomPadding),
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -440,13 +476,15 @@ private fun ResetRouteDialog(markerCount: Int, onConfirm: () -> Unit, onDismiss:
 private fun PointDetailsCard(
     point: RoutePoint,
     addressStatus: AddressStatus,
+    containerColor: Color,
+    bottomPadding: Dp,
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isUnavailable = point.address == null && addressStatus == AddressStatus.Unavailable
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    Card(colors = CardDefaults.cardColors(containerColor = containerColor), modifier = modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp).padding(bottom = bottomPadding)) {
             Text(
                 text = point.address ?: stringResource(
                     if (isUnavailable) R.string.address_unavailable_title else R.string.address_looking_up,
