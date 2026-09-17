@@ -6,25 +6,39 @@ be started and stopped, and the route stays on the map across app restarts until
 Jetpack Compose, Google Maps, Room, DataStore, Koin, and a location foreground service.
 
 Every design decision, the alternative it beat, and how it was verified is in
-[`docs/decisions.md`](docs/decisions.md). The numbers below cite those entries as D1–D22.
+[`docs/decisions.md`](docs/decisions.md). The numbers below cite those entries as D1–D24.
 
 ## Demo
 
-Recorded on an emulator with a scripted route: a made-up 707 m route along İstiklal Caddesi, Istanbul, from
-Taksim to Galatasaray. The location is sent once a second with `adb emu geo fix`, at about 11 m per second.
-Both clips play in real time; they were captured with the emulator's own recorder on an API 36 emulator.
+Three clips, all from the release-like `benchmark` build, all playing in real time at a constant 30 frames
+per second.
 
-- [Clip 1: fresh install, precise location, start, walk, background, notification, return](docs/media/clip1-tracking.mp4) (105 s)
-- [Clip 2: address on tap, stop, swipe away from recents, reopen, reset](docs/media/clip2-address-stop-reset.mp4) (38 s)
+Clips 1 and 2 are the app in use, recorded on an **API 36 emulator** with a scripted route: a made-up 707 m
+route along İstiklal Caddesi, Istanbul, from Taksim to Galatasaray, with the location sent once a second by
+`adb emu geo fix` at about 11 m per second.
+
+- [Clip 1: fresh install, precise location, start, walk, background, notification, return](docs/media/clip1-tracking.mp4) (104 s)
+- [Clip 2: address on tap, stop, swipe away from recents, reopen, reset](docs/media/clip2-address-stop-reset.mp4) (36 s)
+- [Clip 3: a thousand markers, panned and zoomed](docs/media/clip3-stress.mp4) (11 s), recorded on a
+  **Samsung Galaxy S23** with the location permission revoked, so there is no my-location dot and no real
+  position on screen; its thousand-point route was written straight into the database. The same test on the
+  emulator is bound by the emulator's GPU emulation, so the numbers that decide come from the phone:
+  [`docs/stress/README.md`](docs/stress/README.md).
+
+**Why the phone appears in clip 3 only.** The app receives its location from Play services' fused client, and
+on this phone that client ignores the platform's test providers: with a mock `fused` provider, and again with
+a mock `gps` provider, the app kept receiving real fixes (verification log, "Mock location on the phone").
+Recording clips 1 and 2 there would have put the tester's real location on screen, so they stay on the
+emulator. Clip 3 needs no location at all, which is why it could be recorded on the phone.
 
 Clip 1 stops moving for a few seconds before the app goes to the background, and the notification shade stays
 open while the route continues in the background. In an earlier take, the first location delivery after that
 switch arrived 18 s late and the next marker landed 196 m after the previous one (verification log, "Demo
 re-recorded").
 
-| Route, with markers recorded in the background | Notification while in the background | Address of a tapped marker |
+| Seven markers, the last three recorded in the background | Notification while in the background | Address of a tapped marker |
 |---|---|---|
-| <img src="docs/media/route.png" width="240" alt="Route along İstiklal Caddesi with six markers"> | <img src="docs/media/notification.png" width="240" alt="Foreground service notification showing the marker count"> | <img src="docs/media/address.png" width="240" alt="Details card with the address of a marker"> |
+| <img src="docs/media/route.png" width="240" alt="Route along İstiklal Caddesi with seven markers: a teal pin at the start, five teal dots, and a red pin at the newest point"> | <img src="docs/media/notification.png" width="240" alt="Foreground service notification showing six markers and a Stop action"> | <img src="docs/media/address.png" width="240" alt="Details card with the address of the tapped marker, which is drawn as a blue pin"> |
 
 In clip 1 the markers are 110, 110, 110, 143, 110 and 110 m apart. The last three were recorded while the app was
 in the background, and the notification's marker count rises from 4 to 7 (verification log, "Demo re-recorded").
@@ -82,14 +96,21 @@ explanation instead of a blank map (D5):
 
 ```bash
 ./gradlew assembleDebug
-./gradlew :core:test                                                   # 25 JVM tests: the 100 m rule
+./gradlew :core:test :feature:tracking:testDebugUnitTest               # 32 JVM tests: the 100 m rule, marker styles
 ANDROID_SERIAL=<device-serial> ./gradlew :data:connectedDebugAndroidTest   # 6 instrumented tests: Room SQL
 adb -s <device-serial> install -r app/build/outputs/apk/debug/app-debug.apk
+
+./gradlew assembleBenchmark        # release-like build for measurements
 ```
 
-On 2026-09-17 all 31 tests passed from freshly generated results (25 JVM, 6 on an API 33 emulator).
+On 2026-09-17 all 38 tests passed from freshly generated results (32 JVM, 6 on an API 36 emulator).
 Connected tests run on every attached device unless `ANDROID_SERIAL` names one. To move an emulator, use
 `adb emu geo fix <longitude> <latitude>` (longitude first).
+
+**The `benchmark` build type** exists because startup numbers from a debuggable build say little about what a
+user gets: no ahead-of-time compilation, no minification, and debug-only checks. It is release-like -
+minified, resources shrunk, not debuggable - but signed with the debug key, so the Maps key restricted to
+that certificate still works. It is a measurement tool, not a shipping build.
 
 ## Architecture
 
@@ -130,6 +151,70 @@ a refusal is caught and ends the session cleanly (D17).
   batched fixes cannot both pass against the same anchor (D14).
 - The location request is high accuracy, every 10 s, at most every 5 s, with no platform distance filter (D19).
 
+## Markers on the map
+
+Four looks, so that one glance answers where the route began, where it is now, and which point the card
+belongs to:
+
+| Look | Point | Why |
+|---|---|---|
+| Teal pin | the start | Where tracking began: a pin, because it marks a place rather than a step along the way |
+| Teal dot | the points in between | Small enough that neighbours 100 m apart never touch at the zoom the app opens on |
+| Red pin | the newest point | Where the user is now, and the only marker that moves |
+| Larger blue pin | the point whose address card is open | The map and the card agree on what is selected |
+
+Each look is **one bitmap**, drawn once with a `DrawScope` and shared by every marker that uses it, so a
+route of a thousand points holds four bitmaps. The pins are anchored at their tip and carry transparent
+padding, which keeps the newest point's marker clear of the my-location dot underneath it: with the default
+pin, a tap there often went to the dot instead of the marker. What the four bitmaps cost is measured in
+[`docs/stress/README.md`](docs/stress/README.md) - nothing, within the run-to-run spread (D23).
+
+## Opening the app, as measured
+
+Two moments are worth measuring: the **first frame**, which `am start -W` reports as `TotalTime`, and the
+moment the **route and the map are on screen**, which the app reports itself through `ReportDrawnWhen` and
+`am start` logs as "Fully drawn". Medians of five cold starts with a seven-point route, no instrumentation
+in the build:
+
+| Device | Build | First frame | Route and map on screen |
+|---|---|---|---|
+| Samsung Galaxy S23, Android 16 | benchmark | 131 ms | 503 ms |
+| Samsung Galaxy S23, Android 16 | debug | 550 ms | 2209 ms |
+| API 36 emulator | benchmark | 526 ms | 2365 ms |
+| API 36 emulator | debug | 1538 ms | 4008 ms |
+
+A debug build is three to four times slower than the release-like one throughout, which is why the two are
+never mixed. On the first launch after a clean install, where the map has no cached tiles, the same
+measurement gives 146 / 1876 ms on the S23 and 503 / 3834 ms on the emulator in the benchmark build.
+
+**What the startup work changed** (D24). The map is now composed after the stored route has been read, so
+its camera opens on the route instead of opening on a default view of the city and moving there a moment
+later. Measured with temporary startup logs in the build - which add about 150 ms to the last figure, so the
+pairs are comparable with each other and not with the table above:
+
+| Measurement | Before | After |
+|---|---|---|
+| S23 benchmark, cold start, first frame | 246 ms | 123 ms |
+| S23 benchmark, cold start, route and map on screen | 735 ms | 666 ms |
+| S23 benchmark, clean install, route and map on screen | 1394 ms | 1588 ms |
+| API 36 emulator, benchmark, cold start, first frame | 859 ms | 476 ms |
+| API 36 emulator, benchmark, cold start, route and map on screen | 2896 ms | 3148 ms |
+
+So the first frame is about half of what it was, and the honest other half: because the map starts loading
+its tiles about 70 ms later, the moment everything is on screen moved the wrong way on the emulator and on
+a clean install. The tile bytes did not change at all - a clean install received 777 KB either way - so the
+"loading the same tiles twice" theory behind the change turned out to be wrong.
+
+An independent measurement by the reviewer session, on the emulator with a debug build and a seven-point
+route, two rounds of five cold starts: the median `am start -W` TotalTime went from 2152 ms to 1626 ms.
+
+**Where the time goes** on the S23's benchmark build: process start to `Application.onCreate` 14 ms,
+`startKoin` 1 ms, first frame 145 ms, route read from Room 216 ms, map object ready 230 ms, map finished
+rendering 615 ms. The map's tiles dominate, and the app's own code is a small part of it. StrictMode found
+no disk reads on the main thread from app code. While the route is being read there is neither a map nor a
+placeholder on screen - both are inside the same condition - and that window shows the window background,
+the colour the placeholder uses, so the launch screen hands over to one flat surface.
+
 ## Background behaviour, as measured
 
 | Scenario | Result | Device | Ref |
@@ -150,7 +235,13 @@ a refusal is caught and ends the session cleanly (D17).
   says tracking stopped. This is deliberate: location tracking restarts only when the user asks (D17).
 - **Not tested:** Doze and long periods in the background, OEM battery management, swiping away on OEM
   launchers (measured on stock Android only), and Android 8–12 (API 26–32). Tested devices: a Samsung
-  Galaxy S23 with Android 16, and an API 33 emulator.
+  Galaxy S23 with Android 16, an API 36 emulator (Android 16), and an API 33 emulator.
+- **No Baseline Profile is generated for this app.** That needs a macrobenchmark module and a separate
+  device run, which is outside the scope here. The libraries' own profiles are installed:
+  `androidx.profileinstaller` 1.4.0 is on the runtime classpath and the build compiles an ART profile into
+  the APK (D24).
+- **A thousand markers are all drawn at once.** The app does not cluster or page them; what that costs is
+  measured in [`docs/stress/README.md`](docs/stress/README.md).
 - **A refused service restart** was seen in another app on the same device model but never triggered here.
   The path is implemented (the session ends with a notification) and unverified in this project (D17).
 - **Stop and Start continue the same route.** Distance covered while stopped is joined by a straight line

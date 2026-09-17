@@ -3,7 +3,8 @@
 The messages the author sent to the Claude Code session that built this project, in order and in their
 original language (Turkish), each with a one-line English summary. Only the author's messages are included:
 no assistant replies and no tool output. Answers the author gave through the assistant's multiple-choice
-questions are not messages; the resulting decisions are recorded in `docs/decisions.md`.
+questions are not messages; the resulting decisions are recorded in `docs/decisions.md`. Commands the
+author ran in their own terminal, and the tool's task notifications, are not messages either.
 
 Content that is not about the code was cut, and every cut is marked `[removed: …]`, mostly `[removed: not about the code]`: other companies and
 projects, people, the hiring process, local paths, device identifiers and key fragments. Technical content is
@@ -460,8 +461,7 @@ DÜZELTMELER:
    oturum devam eder; force-stop/yeniden başlatmada (servis sağ kalmadığında) oturum sonraki açılışta
    kapatılır ve takip kendiliğinden başlamaz.
 2. README "dürüst sınırlar" BU PROJENİN ölçümünü kullanmalı: sistem öldürmesinde takip DEVAM ETTİ (4/4,
-   S23 Android 16); reddetme yolu yazıldı ama bu projede tetiklenmedi. "Takip kalmaz" ifadesi [removed: not about the code];
-   burada tekrar etmedi — kullanma. Doze, OEM pil yönetimi ve API 26–32 "Device check pending".
+   S23 Android 16); reddetme yolu yazıldı ama bu projede tetiklenmedi. "Takip kalmaz" ifadesi [removed: not about the code] ve burada tekrar etmedi — kullanma. Doze, OEM pil yönetimi ve API 26–32 "Device check pending".
 3. Düşük öncelik: record() oturum aktifliğine bakmıyor; Stop'tan sonra kuyrukta kalan bir fix kaydedilebilir
    (pencere ms, en fazla 1 nokta). Tek satır kontrol ekle ya da decisions'a bir cümle yaz.
 4. [removed: not about the code]
@@ -485,8 +485,7 @@ commit'te tutarlı — README'deki AI bölümü buna atıf yapsın. Kullanıcı 
    çizgiyle birleşir (günlükteki 144 m satırı bunu gösteriyor). Segmentlere ayırmak nokta başına oturum
    kimliği + şema migration'ı ister, kapsam dışı. Ekran kaydında bu sahneyi ya açıklayarak göster ya da
    kayıt sırasında durdurup yer değiştirme.
-2. [removed: not about the code]
-   acceptingFixes pencereyi daraltır ama recordFix'in içindeki bir fix
+2. [removed: not about the code] acceptingFixes pencereyi daraltır ama recordFix'in içindeki bir fix
    yine tamamlanır; tamamen kapatmak kontrolü kilidin içine almayı gerektirirdi, ms'lik tek nokta için
    değmedi.
 ````
@@ -563,4 +562,210 @@ GENEL KURALLAR
 7) [removed: a scan for sensitive terms; the term list is kept out of the repository]
 
 RAPOR: commit listesi; README'deki her sayının kaynağı (D numarası veya bugünkü ölçüm); tarama sonuçları (üç kapsam ve pozitif kontrol); clean clone log özeti; medya dosya boyutları.
+````
+
+---
+
+## 13. 2026-09-17 13:02 UTC
+
+**Summary:** Review 9 (delivery): the README's account of the AI workflow overclaims, one prompt cut is unmarked, move the new log rows to the end, crop or retake the notification screenshot; commit but do not push.
+
+````text
+DOKUZUNCU REVIEW (teslim). Bağımsız doğrulandı: yerel temiz clone (a79b692, key yok) 101/101 executed, 0 FROM-CACHE, :core 25/25, HAS_MAPS_API_KEY=false, merged manifest key "", build sonrası git status boş. RouteDao ve RouteDaoTest 572a39a'dan beri değişmedi, 6/6 geçerli. README'deki D12/D13/D17/D21 sayıları decisions.md ile birebir. Tarama üç kapsamda temiz, pozitif kontrol ateşledi. prompts.md transcript'teki 12 mesajın tamamı. MP4'lerde konum metadata'sı yok. 24/24 commit Co-Authored-By.
+
+DÜZELTMELER:
+1. P1: README "AI usage" iki yerde fazlasını iddia ediyor.
+   (a) "reviewed every commit before pushing": 16 Eylül 18:21 ve 18:52'de, 17 Eylül 09:15'te push'u session yaptı. Kural 09:25'te geldi. docs/ai/README bunu doğru yazıyor ("From 2026-09-17"); README'yi onunla eşle.
+   (b) Mesajların kaynağı yazılmamış. 1. mesaj (brief), review mesajları ve 12. mesaj (teslim brief'i) review session'ında hazırlandı; yazar neyin gönderileceğine karar verdi ve karar sorularını cevapladı. Bu cümleyi README AI bölümüne ve docs/ai/README Workflow 1. ve 5. maddelere ekle. prompts.md bunu zaten belli ediyor; README söylemezse okuyan kişi çelişki bulur. Karar listesine Co-Authored-By ve repo görünürlüğü sorularını da ekle (transcript'te 10 soru var).
+2. P2: prompts.md mesaj 12 "7 iş" diyor ama 6 madde var. 7. madde işaretsiz kesilmiş, RAPOR satırı da sessizce değiştirilmiş. Dosyanın başı her kesintinin işaretli olduğunu söylüyor. Şunu ekle: "7) [removed: a scan for sensitive terms; the term list is kept out of the repository]". RAPOR satırını orijinaline döndür (içinde hassas bir şey yok).
+3. P3: Verification log'daki 7 yeni satır, daha eski iki satırın ("Recording across stop and restart" ve "Mutation M5") üstüne eklenmiş, günlük artık kronolojik değil. Sona taşı.
+4. P3: notification.png'de emülatörün "Serial console enabled, Performance is impacted" sistem bildirimi var ve göz önce ona gidiyor. Bildirim kapatılabiliyorsa kapatıp yeniden çek, kapatılamıyorsa `sips` ile uygulamanın bildirim kartını içeren kısma kırp. Kliplerde görünmesi sorun değil.
+
+Koda dokunma. Düzeltmeleri commit et, push etme. docs/media, kullanıcı klipleri izleyene kadar commit'lenmez.
+````
+
+---
+
+## 14. 2026-09-17 13:18 UTC
+
+**Summary:** Shorten the demo clips with ffmpeg, back the originals up outside the repository, check the result with ffprobe, and do not commit them until they have been watched.
+
+````text
+KLİPLERİ KISALT: sadece medya ve doküman, koda dokunma.
+
+Ölçüm (review session'ı, MP4 zaman tablosundan): screenrecord değişken kare hızıyla kaydediyor, ekran değişmeyince kare yazmıyor. clip1'in 106.7 s'sinin 72 s'si, clip2'nin 73.0 s'sinin 45 s'si 1 s'den uzun sabit karelerde geçiyor: konum güncellemesi bekleniyor. Hareketli kısımların medyan kare aralığı 18–35 ms, zaten akıcı. Sorun emülatör değil, bekleme.
+
+Yöntem: her karenin ekranda kalma süresini 1.0 s ile sınırla; hareketli kısımlar gerçek hızda kalır. ffmpeg'i kullanıcı kuracak. `which ffmpeg` boşsa dur, bana söyle.
+
+1. Orijinal klipleri repo dışına yedekle (`mktemp -d`).
+2. Her klip için:
+   ffmpeg -i IN.mp4 -vf "setpts='if(eq(N,0),0,PREV_OUTPTS+min(PTS-PREV_INPTS,1.0/TB))'" -fps_mode vfr -c:v libx264 -crf 23 -pix_fmt yuv420p -movflags +faststart -an OUT.mp4
+3. ffprobe ile doğrula:
+   - kare sayısı orijinalle aynı (`-count_frames`; clip1 432, clip2 405)
+   - en uzun kare aralığı ≤ 1.0 s
+   - yeni süre (beklenen yaklaşık clip1 53 s, clip2 40 s) ve dosya boyutu
+4. Okunması gereken anlar (izin diyaloğu, adres kartı, reset onayı) 1 s'de okunamıyorsa sınırı 1.5 s yapıp tekrarla. İki sürümü de bana söyle, ben izleyip seçeceğim.
+5. README Demo bölümü: süreleri güncelle ve şunu ekle: "Waits between location updates are shortened: no frame stays on screen longer than 1 s; everything else plays at real speed. The waits come from the location request, at most every 5 s in the foreground and 10 s in the background (D19)."
+6. Verification log'a bir satır ekle: komut, sınır değeri, önceki ve sonraki süreler, kare sayıları.
+7. Klipleri henüz commit etme; kullanıcı yeni hallerini izleyecek.
+````
+
+---
+
+## 15. 2026-09-17 16:25 UTC
+
+**Summary:** The videos are still bad: set up a fresh emulator and record them again.
+
+````text
+videolar hala çok kötü. sıfırdan emülatör kurup tekrardan video çek
+````
+
+---
+
+## 16. 2026-09-17 17:52 UTC
+
+**Summary:** Final round: measure startup and the map first, then custom markers and startup work, every change its own commit with before-and-after numbers, and stop at a gate to report.
+
+````text
+SON TUR: iki iyileştirme (custom marker, açılış ve harita hızı), ardından teslim. Fazlar sırayla; her faz bir kapıyla biter. Ölçmeden iddia yok.
+
+FAZ 0: GÜVENLİK AĞI
+- `git switch -c polish/markers-startup`. main teslim edilebilir hâlde kalır.
+- Cuma 11:00'de Kapı 2 geçilmemişse branch'i bırak; main'deki mevcut kliplerle Faz 3'ün teslim adımlarına geç.
+
+FAZ 1: ÖLÇ (kod yok)
+Açılış (API 36 emülatör ve S23; her komutta -s ile pinle. S23'ten medya veya log repoya girmez, sadece sayılar):
+1. Cold start: `am force-stop`, ardından `adb shell am start -S -W -n com.erolgizlice.routetracker/.MainActivity`, 5 kez. TotalTime medyanını al. Ayrıca temiz kurulumdan sonraki ilk açılışı 3 kez ölç (her seferinde uninstall + install).
+2. Release'e yakın build: `benchmark` build type ekle (initWith release, isMinifyEnabled ve isShrinkResources true, signingConfig debug; Maps key debug SHA-1'e kısıtlı olduğu için çalışır, debuggable false). Aynı ölçümleri tekrarla. Debug ile benchmark sayılarını ayrı tut.
+3. Harita: GoogleMap'in `onMapLoaded` anına ve rotanın ekrana geldiği ana geçici log koy (süreç başlangıcından geçen ms). Rota geldiğinde `reportFullyDrawn()` çağır. Ölç.
+4. Kök nedenleri sayılarla sırala:
+   - süreç başlangıcı ve Koin
+   - ilk kare (main thread'de I/O var mı?)
+   - Maps SDK init
+   - tile indirme
+   - kameranın önce İstanbul'a sonra rotaya gitmesi (tile'lar iki kez yükleniyor mu?)
+Marker'lar:
+5. Mevcut durum: her nokta için varsayılan `Marker`, `key(point.id)` ile. Stres ölçümü (timebox 30 dk, commit'lenmez): debug-only bir yolla 1000 sahte nokta yükle. `dumpsys gfxinfo <pkg> reset`, ardından haritada 10 s kaydırma ve zoom yap, sonra janky frame yüzdesini ve p90/p99 kare süresini oku.
+
+FAZ 2: UYGULA (her değişiklik ayrı commit; her birinin önce/sonra sayısı olsun)
+Açılış ve harita, Faz 1'deki kök nedenlere göre:
+a. `MainActivity`'de Maps SDK'yı erken başlat: `MapsInitializer.initialize(applicationContext, MapsInitializer.Renderer.LATEST, null)`. Application'a KOYMA: START_STICKY restart süreci Activity'siz açar, orada harita yok (D8). İlk kareyi geciktiriyorsa ölçümle göster ve geri al.
+b. Rota varsa kamera doğrudan son noktada başlasın; İstanbul'dan rotaya zıplama olmasın. Doğrulama: ilk karelerde İstanbul görünümü yok.
+c. `onMapLoaded` gelene kadar harita alanında uygulama arka plan renginde bir placeholder göster, sonra kısa bir fade ile kaldır. Bu algı iyileştirmesi, hız değil; öyle belgele. Key'siz build'de (D5) missing-key kartı yine görünmeli ve placeholder sonsuza kadar kalmamalı; ölç.
+d. `profileinstaller` bağımlılığı var mı, `:app:dependencies` ile kontrol et. Özel Baseline Profile üretimi (macrobenchmark modülü) kapsam dışı; README sınırlarına yaz.
+Custom marker'lar:
+e. Dört görünüm: başlangıç, ara nokta, son nokta, seçili. Her biri Canvas/DrawScope ile BİR kez çizilen bitmap'ten tek bir `BitmapDescriptor`; bütün marker'lar paylaşır. `MarkerComposable` KULLANMA (her marker için Compose render eder). Numaralı marker YOK (her numara ayrı bitmap demek).
+f. TUZAK: `BitmapDescriptorFactory` Maps SDK başlamadan çağrılırsa "IBitmapDescriptorFactory is not initialized" fırlatır. Descriptor'ları harita başladıktan sonra oluştur; key'siz build'de çökmediğini doğrula.
+g. Seçili marker: adres kartı açık olan marker vurgulansın; mevcut seçim state'inden türet (MVI, tek state). contentDescription'lar korunur.
+h. Anchor ve tıklama: demoda son marker mavi konum noktasıyla çakıştığı için ilk dokunuşta açılmıyordu. Yeni görünümle son marker'a 5 kez dokun, kaç kez açıldığını raporla.
+i. Stil seçimi saf bir fonksiyon olsun (index, nokta sayısı, seçili id → stil). JVM unit testi yaz, bir mutasyonla testin kırılabildiğini kanıtla.
+j. 1000 noktalı stres ölçümünü custom marker'larla tekrarla. Varsayılandan kötü değilse bunu "performans kazancı" diye değil "ek maliyetsiz görsel ve seçili durum" diye belgele. Performans iddiası sadece ölçüm destekliyorsa yazılır.
+k. decisions.md'ye D23 (marker'lar) ve D24 (açılış ve harita): elenen alternatifler (MarkerComposable, numaralı marker, Application'da init) ve Measured kanıtlarla. verify-claim ile tüm testler taze sonuçla.
+
+KAPI 2: DUR. Bana şunları raporla ve review gelmeden kayda geçme:
+- commit listesi
+- önce/sonra tablosu (debug ve benchmark; emülatör ve S23)
+- stres sonuçları (varsayılan ve custom)
+- dokunma testi sonucu
+- emülatörden yeni marker'ların bir ekran görüntüsü (repoya girmez)
+
+FAZ 3: KAYIT VE TESLİM (review sonrası "devam" deyince)
+1. İki klibi yeni build ile yeniden çek (device-check "Recording a demo" kuralları, API 36 AVD, host recorder).
+2. Klip 1'de arka plan paneli yine uzun ve donuk kalırsa (önceki ölçüm: panelde sadece sayaç değişiyordu, "4 markers" 20 s duruyordu, sonda 7 s donuk kare vardı): önce karelerle sınırları doğrula, sonra panel kısmını 4 kat hızlandır ve sondaki donuk kısmı kes. Örnek (sınırları yeni klibe göre ayarla):
+   ffmpeg -i IN.mp4 -filter_complex "[0:v]split=3[a][b][c];[a]trim=0:54,setpts=PTS-STARTPTS[a1];[b]trim=54:96,setpts=(PTS-STARTPTS)/4,fps=30[b1];[c]trim=96:100,setpts=PTS-STARTPTS[c1];[a1][b1][c1]concat=n=3:v=1:a=0,format=yuv420p[v]" -map "[v]" -c:v libx264 -preset slow -crf 22 -movflags +faststart -an OUT.mp4
+   Doğrula: sabit 30 fps, en uzun kare aralığı 33 ms, hızlı bölümde sayacın arttığı görünüyor. README'de hangi aralığın kaç kat hızlı oynadığını açıkça yaz. Verification log'a komut ve süreleri ekle. Hızlandırma yapılsın mı kararını kullanıcı izledikten sonra verir; iki sürümü de hazır tut.
+3. README:
+   - kareleri yeni kliplerden al; route.png alt metnindeki marker sayısı görsele uysun
+   - "Tested devices" satırına API 36 emülatörünü ekle
+   - açılış sayılarını ekle (debug ve benchmark ayrı ayrı; hangi cihazda)
+   - Baseline Profile üretilmediğini sınırlara yaz
+4. prompts.md, SON İŞ OLARAK:
+   - 13:02 UTC'den sonraki tüm mesajlarımı ekle (bu mesaj dahil). Terminalde çalıştırdığım `brew install ffmpeg` ve task bildirimleri mesaj değil, dahil etme.
+   - Mesaj 10'u orijinaline getir: "[removed: not about the code] ve burada tekrar etmedi".
+   - docs/ai/README'deki review mesajı listesini güncelle.
+   - Her mesajın transcript'teki orijinalinden yalnızca [removed] işaretlerinde ayrıldığını programatik olarak kontrol et.
+5. Hassas terim taraması (üç kapsam + pozitif kontrol); temiz clone'da key'siz build ve :core testleri.
+6. Bana haber ver ve DUR. Kullanıcı klipleri izleyip onaylayınca: docs/media commit'i, branch'i main'e fast-forward merge et. Push'u kullanıcı yapar.
+````
+
+---
+
+## 17. 2026-09-17 19:20 UTC
+
+**Summary:** Delivery phase: two small fixes, a written and recorded stress test, re-recorded clips, README sections, prompts.md, the sensitive-term scan and a fresh-clone check, with the privacy rules for anything recorded on the phone.
+
+````text
+FAZ 3: KAYIT, STRES TESTİ BELGESİ VE TESLİM. Kod donduruldu; aşağıdakiler dışında koda dokunma.
+
+ÖNCE İKİ KÜÇÜK DÜZELTME (yapılırsa testler ve ölçümler tekrar):
+1. D24'e bir cümle: rota okunurken ekranda harita da placeholder da yok, çünkü ikisi de aynı koşulun içinde; süre kısa ve arka plan rengi aynı.
+2. `ReportDrawnWhen { isMapLoaded }` çevrimdışıyken hiç tetiklenmiyor. `isMapLoaded || placeholderTimedOut` yap; çevrimiçi ölçümleri değiştirmediğini bir koşuyla göster, D24'e yaz. Hızlı değilse atla ve atladığını söyle.
+
+STRES TESTİ BELGESİ (kullanıcının isteği: hem yazılı hem videolu, repoda)
+3. `docs/stress/README.md`:
+   - Yöntem: 1000 noktanın veritabanına nasıl konduğu (kullandığın tam komut, uygulamada kod yok), neden 20 m aralık, hangi build, hangi cihaz, `dumpsys gfxinfo <pkg> reset` ve 10 s kaydırma/zoom protokolü.
+   - Sonuçlar: varsayılan marker ve dört paylaşılan bitmap için S23 ve API 36 emülatör; toplam kare, janky yüzdesi, p50/p90/p99. `dumpsys gfxinfo` çıktısının ilgili bölümünü olduğu gibi ver (cihaz seri numarası ve dosya yolları çıkarılmış olarak).
+   - 1000 noktalı soğuk açılış sayıları.
+   - Dürüst yorum: bu bir performans iddiası değil; ölçüm, dört bitmap'in ölçülebilir bir maliyet getirmediğini gösteriyor. Emülatör sayıları kendi GPU emülasyonuyla sınırlı, karar veren sayılar telefondan.
+4. `docs/media/clip3-stress.mp4` (emülatör, ≤ 20 s): 1000 marker ekranda, akıcı kaydırma ve zoom. README'de linkin yanına tek cümle: emülatörde çekildi, emülatörün GPU emülasyonu hem varsayılan hem custom marker'ları aynı şekilde sınırlıyor, karşılaştırmalı sayılar docs/stress'te. Telefondan görüntü YOK.
+
+KAYIT
+5. Klip 1 ve klip 2'yi yeni build ile yeniden çek (device-check "Recording a demo" kuralları, API 36 AVD, host recorder, geo fix saniyede bir).
+6. Klip 1'de arka plan paneli yine uzun kalırsa: sınırları karelerle doğrula, panel kısmını 4× hızlandır, sondaki donuk kısmı kes. Hem gerçek hızlı hem hızlandırılmış sürümü hazır tut; kullanıcı izleyip seçecek. Hangi aralığın kaç kat oynadığı README'de yazacak.
+
+README
+7. Kareleri yeni kliplerden çıkar; route.png alt metnindeki marker sayısı görselle uysun.
+8. "Tested devices" satırına API 36 emülatörünü ekle.
+9. Yeni bölüm: marker'ların dört görünümü (başlangıç, ara nokta, son nokta, seçili) ve nedenleri, D23'e link.
+10. Açılış sayıları: debug ve benchmark ayrı, hangi cihaz olduğu yazılı; ilk kare ile fully drawn ayrımı ve fully drawn'ın neden büyüdüğü. Review session'ının bağımsız ölçümünü de ekleyebilirsin: emülatör, debug, 7 noktalı rota, ikişer tur beşer soğuk açılış, `am start -W` TotalTime medyanı 2152 ms → 1626 ms.
+11. "Build and test" bölümüne `benchmark` build type'ının ne işe yaradığı ve `./gradlew assembleBenchmark` komutu.
+12. Sınırlara: Baseline Profile üretilmedi; kütüphanelerin kendi profilleri kuruluyor.
+
+SON İŞLER
+13. prompts.md: 13:02 UTC'den sonraki bütün mesajlarım (bu dahil). `brew install ffmpeg` ve task bildirimleri mesaj değil. Mesaj 10'u orijinaline getir ("[removed: not about the code] ve burada tekrar etmedi"). docs/ai/README'deki mesaj listesini güncelle. Her mesajın orijinalinden yalnızca [removed] işaretlerinde ayrıldığını programatik doğrula.
+14. Hassas terim taraması (üç kapsam + pozitif kontrol). verify-claim ile tüm testler taze. Temiz clone'da key'siz build ve :core testleri.
+15. DUR ve bana raporla. Kullanıcı klipleri izleyip onaylayınca: docs/media ve docs/stress commit'i, branch'i main'e fast-forward merge. Push'u kullanıcı yapar.
+
+ZAMAN: 13:00'e kadar stres videosu bitmezse onu bırak, yazılı sonuçlarla devam et ve bana söyle.
+
+
+Faz 3 prompt'undaki 4. maddenin yerine geçer:
+
+STRES KLİBİ S23'TE. Uygulamanın dışına hiç çıkma; sistem arayüzü kadraja girmeyecek.
+
+1. Hazırlık:
+   - S=[removed: the test phone's serial number]; her komutta -s ile pinle.
+   - `adb -s $S shell pm clear com.erolgizlice.routetracker` — D17 testlerinden kalan GERÇEK koordinatlar ve adresler bu veritabanında; önce silinecek.
+   - `adb -s $S shell pm revoke com.erolgizlice.routetracker android.permission.ACCESS_FINE_LOCATION` ve COARSE. Böylece mavi konum noktası çizilmez, ekranda gerçek konum olmaz. Bunu kayıttan önce ekran görüntüsüyle doğrula.
+   - Rahatsız Etmeyin'i aç; kayıt sırasında bildirim düşmesin.
+2. 1000 noktayı tohumla (uygulamada kod yok, doğrudan veritabanına; kullandığın tam komutu docs/stress'e yazacaksın). Koordinatlar uydurma rota üzerinde olsun.
+3. Kaydet: `adb -s $S shell screenrecord --bit-rate 8000000 --time-limit 60 /sdcard/stress.mp4`, uygulamayı aç, 1000 marker görünürken 10-15 s kaydır ve zoom yap, `pkill -INT screenrecord` ile bitir, çek.
+   Sabit kare hızına çevir: `ffmpeg -i stress.mp4 -vf fps=30 -c:v libx264 -preset slow -crf 22 -pix_fmt yuv420p -movflags +faststart -an docs/media/clip3-stress.mp4`. ≤ 20 s, ≤ 5 MB.
+4. Aynı koşuda `dumpsys gfxinfo` sayılarını da al; docs/stress/README.md'ye hem varsayılan hem custom marker sonuçlarını, S23 ve emülatör için ayrı ayrı yaz. Çıktıdan cihaz seri numarasını ve dosya yollarını temizle.
+5. Gizlilik kapısı: klibin 1 fps kare kontak sayfasını çıkar ve tara. Gerçek adres, hesap adı, kişisel uygulama, durum çubuğunda tanımlayıcı bir şey olmamalı. Kullanıcı ve review session'ı görmeden commit yok.
+6. Geri alma, kayıt biter bitmez: konum izinlerini geri ver (`pm grant` ikisi için), DND'yi kapat. Telefonda Haritalar'ın gerçek konumu gösterdiğini doğrula.
+7. README: klip 3'ün S23'te, konum izni kapalıyken, tohumlanmış 1000 noktalı bir rota ile çekildiğini yaz. Emülatör sayılarının kendi GPU emülasyonuyla sınırlı olduğunu da.
+
+
+KLİP 1 VE 2'Yİ S23'TE ÇEK. Cut line 11:00: aşağıdaki 2. madde çalışmazsa ya da gizlilik kapısı takılırsa emülatör klipleriyle devam et.
+
+1. `pm clear` ile eski gerçek noktaları sil. DND aç. Ekran zaman aşımını uzat (eski değerini not al).
+2. Sahte konum sağlayıcısı, her adımı ölçerek:
+   adb -s $S shell appops set 2000 android:mock_location allow
+   adb -s $S shell cmd location providers add-test-provider fused --requiresSatellite --supportsSpeed --supportsBearing
+   adb -s $S shell cmd location providers set-test-provider-enabled fused true
+   adb -s $S shell cmd location providers set-test-provider-location fused --location 41.0369,28.9850 --accuracy 8
+   ÖLÇ: uygulama bu fix'i alıyor mu, marker düşüyor mu? "fused" işe yaramazsa "gps" sağlayıcısıyla dene ve fused istemcisine ulaşıp ulaşmadığını ölç. İkisi de olmuyorsa DUR, emülatörle devam et ve bana söyle.
+   Rota: saniyede bir fix, ~11 m/s, aynı 707 m'lik uydurma rota. Doğruluk 8 m, yani 50 m kapısının üstünde.
+3. SİSTEM ARAYÜZÜ YASAK: ana ekran, son uygulamalar ve bildirim gölgesi kadraja girmeyecek. Bu telefonda ikinci kullanıcı yok, steril ana ekran yok.
+   - Arka plan sahnesi: Saat uygulamasına geç, orada kal, sonra uygulamaya dön. Uygulamaya dönünce arkada eklenen marker'lar orada olacak.
+   - Bildirim sahnesini S23'te çekme; emülatör klibindeki hâliyle kalsın ya da hiç gösterme.
+   - Klip 2'deki "son uygulamalardan kaydırma" sahnesi de S23'te çekilmez; o sahne emülatörde kalır.
+4. Kayıt ve dönüştürme Blok 1'deki gibi (screenrecord + ffmpeg fps=30).
+5. Gizlilik kapısı: her iki klibin 1 fps kontak sayfasını çıkar ve tara. Kullanıcı ve review session'ı onaylamadan commit yok.
+6. Geri alma, hemen kayıttan sonra, tek tek doğrulayarak:
+   adb -s $S shell cmd location providers remove-test-provider fused
+   adb -s $S shell appops set 2000 android:mock_location default
+   DND kapat, ekran zaman aşımını eski değerine al. Telefonda Haritalar gerçek konumu gösteriyor mu, doğrula.
+7. README ve decisions: hangi klibin hangi cihazda çekildiği, S23 kliplerinde konumun test sağlayıcısıyla verildiği, hangi sahnelerin neden emülatörde kaldığı açıkça yazılacak.
 ````
