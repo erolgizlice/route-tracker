@@ -60,7 +60,12 @@ says how it was verified:
 
 - **Decision:** without a key, the map screen shows a card explaining how to add one. Tracking and
   recording still work.
-- **Evidence:** Reasoned. Device check pending (screenshot for the README).
+- **Evidence:** Measured on the API 33 emulator (`docs/media/missing-key.png`), with the `MAPS_API_KEY` line
+  removed from `local.properties`. The configuration cache was invalidated, `HAS_MAPS_API_KEY = false`, the
+  merged manifest key was empty and the build succeeded. The card was shown; after Start the service was in
+  the foreground and fixes 100.8 m apart were recorded (the marker count is visible under the card). With
+  the file restored (same sha256) and the keyed build installed, the card disappeared and the map loaded.
+  The first render took longer than 8 s.
 
 ---
 
@@ -377,5 +382,6 @@ says how it was verified:
 | 2026-09-17 | Address retry and offline (D21) | **First attempt invalid:** the old map renderer does not expose markers to accessibility, so every tap failed, and the helper's "NOT FOUND" output had been discarded. Repeated by tapping coordinates read from a screenshot, checking each opened card's coordinates against the database |
 | 2026-09-17 | Swipe away from recents (D17) | **First attempt invalid:** the swipe missed and the task stayed in recents. Repeated with the recents screen verified by screenshot; the task was removed and tracking continued |
 | 2026-09-17 | Instrumented result location | Connected test XML lands in `build/outputs/androidTest-results/connected/<variant>/`. `verify-claim` had reported 25 tests and ignored those 6; the skill now covers both locations |
+| 2026-09-17 | Missing key (D5) | Measured as described in D5. The first point recorded after Start was the emulator's stale location from an earlier test, 5.8 km away: the fused provider hands out its last known location first. Scripted demos must set the start location before starting |
 | 2026-09-17 | Recording across stop and restart | After adding the dropped-fix flag (D17): on the emulator, 2 points were recorded while tracking, none after Stop, and 2 after Start again. The first of those is the location the emulator had moved to while stopped, 144 m from the last point |
 | 2026-09-17 | Mutation M5: `last()` DESC → ASC | Previously passed all 25 tests (D10 gap). Now: compiled, 58 of 58 tasks executed, 0 from cache, and exactly `lastReturnsTheMostRecentlyRecordedPoint` and `routeIsOrderedByRecordingEvenWhenTheClockWentBackwards` failed. Restored with matching md5: 31 / 31 |
