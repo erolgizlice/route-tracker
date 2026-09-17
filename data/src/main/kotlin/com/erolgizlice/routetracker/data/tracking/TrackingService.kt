@@ -57,6 +57,11 @@ class TrackingService : Service() {
 
     private lateinit var locationClient: FusedLocationProviderClient
     private var locationCallback: LocationCallback? = null
+
+    // Fixes can still sit in the channel when a session ends. This flag is cleared before anything else
+    // in endSession, so they are dropped instead of recorded after Stop.
+    @Volatile
+    private var acceptingFixes = false
     private var notificationUpdates: Job? = null
 
     override fun onCreate() {
@@ -123,6 +128,7 @@ class TrackingService : Service() {
         }
 
         // 3. Location updates. Idempotent: a repeated start must not register a second callback.
+        acceptingFixes = true
         if (locationCallback == null) requestLocationUpdates()
         if (notificationUpdates == null) {
             notificationUpdates = scope.launch {
@@ -182,6 +188,10 @@ class TrackingService : Service() {
     }
 
     private suspend fun record(fix: LocationFix) {
+        if (!acceptingFixes) {
+            Log.d(TAG, "Dropped a fix that arrived after the session ended")
+            return
+        }
         when (val result = recordFix(fix)) {
             is RecordFixUseCase.Result.Recorded -> {
                 Log.i(TAG, "Recorded point ${result.point.id} (accuracy ${fix.accuracyMeters} m)")
@@ -195,6 +205,7 @@ class TrackingService : Service() {
     }
 
     private suspend fun endSession(startId: Int?, reason: String, notifyUser: Boolean) {
+        acceptingFixes = false
         Log.i(TAG, "Ending session: $reason")
         removeLocationUpdates()
         notificationUpdates?.cancel()

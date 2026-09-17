@@ -30,7 +30,11 @@ enum class IssueAction { RequestPermission, OpenAppSettings, OpenLocationSetting
 enum class AddressStatus { Idle, Resolving, Unavailable }
 
 enum class TrackingNotice {
-    /** The session was active but no service was running: a force-stop, a reboot, or a refused restart. */
+    /**
+     * The session was still marked active at app start, but no service was running: after a force-stop or a
+     * reboot no app code ran to end it. (A restart the platform refuses ends the session itself and posts a
+     * notification instead.)
+     */
     SessionEndedWhileClosed,
 }
 
