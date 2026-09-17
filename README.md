@@ -13,8 +13,12 @@ Every design decision, the alternative it beat, and how it was verified is in
 Recorded on an emulator with a scripted route: a made-up 660 m walk along İstiklal Caddesi, Istanbul, from
 Taksim to Galatasaray (API 33 emulator, `adb emu geo fix`).
 
-- [Clip 1: fresh install, precise location, start, walk, background, notification, return](docs/media/clip1-tracking.mp4) (107 s)
-- [Clip 2: address on tap, stop, swipe away from recents, reopen, reset](docs/media/clip2-address-stop-reset.mp4) (73 s)
+- [Clip 1: fresh install, precise location, start, walk, background, notification, return](docs/media/clip1-tracking.mp4) (54 s)
+- [Clip 2: address on tap, stop, swipe away from recents, reopen, reset](docs/media/clip2-address-stop-reset.mp4) (40 s)
+
+Waits between location updates are shortened: no frame stays on screen longer than 1 s, except the final frame
+of clip 2 at 1.2 s; everything else plays at real speed. The waits come from the location request, at most every 5 s in
+the foreground and 10 s in the background (D19).
 
 | Route, with markers recorded in the background | Notification while in the background | Address of a tapped marker |
 |---|---|---|
