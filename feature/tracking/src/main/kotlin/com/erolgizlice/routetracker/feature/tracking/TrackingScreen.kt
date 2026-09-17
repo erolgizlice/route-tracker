@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.ReportDrawnWhen
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -138,6 +139,10 @@ internal fun TrackingScreen(
     // Saveable: a rotation must not yank the camera back after the user has panned away.
     var hasCenteredOnRoute by rememberSaveable { mutableStateOf(false) }
     val hasRoute = state.points.isNotEmpty()
+    var isMapLoaded by remember { mutableStateOf(false) }
+    // What "started" means for this screen: the stored route is loaded and the map has finished rendering.
+    // Without this, `am start -W` and startup profilers stop at the first frame, which is still an empty map.
+    ReportDrawnWhen { !state.isLoading && isMapLoaded }
     val resources = LocalContext.current.resources
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
@@ -172,6 +177,7 @@ internal fun TrackingScreen(
                 bottom = maxOf(safeDrawing.calculateBottomPadding(), bottomOverlayHeight),
             ),
             onMapClick = { onIntent(TrackingIntent.SelectionDismissed) },
+            onMapLoaded = { isMapLoaded = true },
         ) {
             if (state.points.size > 1) {
                 Polyline(points = state.points.map { it.latLng }, width = 8f)
