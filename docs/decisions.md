@@ -95,12 +95,12 @@ says how it was verified:
 - **Decision:** `startKoin` runs in `RouteTrackerApp.onCreate`.
 - **Rationale:** when the system restarts a sticky service, it creates the process without any
   Activity. The service still needs its dependencies.
-- **Evidence:** Reasoned. Device check pending: kill the process while tracking, on an emulator with a
-  Google APIs image, by running `adb root` and then `adb shell kill -9 <pid>`. `adb shell am kill` is not a
-  valid test here: it only kills processes that are safe to kill, which excludes a process running a
-  foreground service. The author's own app, measured on a single Android 16 device, could not bring a
-  restarted service back as a location foreground service. This project must reproduce that before
-  claiming it; see D17, to be written with the service.
+- **Evidence:** Measured on a Galaxy S23 (Android 16). The process was killed with
+  `adb shell run-as <package> kill -9 <pid>`. That needs no root on a debuggable build, and ActivityManager
+  logs it as `has died: prcp FGS`. The system restarted the service in a new process with no Activity,
+  and the service ran with its injected dependencies. `adb shell am kill` is not a valid test: it only
+  kills processes that are safe to kill, which excludes a process running a foreground service.
+  What the restarted service could do is recorded in D17.
 
 ### D9. The route is ordered by insertion id, not by timestamp
 
@@ -145,9 +145,13 @@ says how it was verified:
   considered. Rejected fixes neither record nor move the anchor.
 - **Trade-off:** with poor signal (tunnels, indoors, urban canyons) markers are delayed rather than wrong.
 - **Rejected:** 100 m (as uncertain as the rule itself) and no filter.
-- **Evidence:** the behaviour is measured by tests; **the 50 m threshold itself is reasoned, not measured.**
+- **Evidence:** the behaviour is measured by tests. On a Galaxy S23, indoors, the problem occurred
+  exactly as described. The first fix after starting had an accuracy of 100 m and was rejected; 4 s
+  later a 14 m fix became the start of the route. Later a 173 m fix arrived in the background and was
+  also rejected. In that session good fixes were 6–27 m and coarse ones 100–173 m, so 50 m separated
+  them cleanly. **That is one session on one device: the threshold remains a judgment, not a tuned value.**
   Device check pending: emulator mock locations (`adb emu geo fix`, GPX routes) must carry an accuracy
-  value, or nothing will be recorded during testing.
+  value, or nothing will be recorded during emulator testing.
 
 ### D13. Haversine instead of `Location.distanceBetween`
 
@@ -182,8 +186,9 @@ says how it was verified:
 - **Decision:** after confirmation the route is cleared; tracking continues and the next accurate fix
   starts a new route.
 - **Rejected:** stopping tracking on reset (couples two independent actions); disabling reset while tracking.
-- **Evidence:** Measured at the use-case level (`after a reset the next accurate fix starts a new route`).
-  Device check pending.
+- **Evidence:** Measured at the use-case level (`after a reset the next accurate fix starts a new route`)
+  and on a Galaxy S23: while tracking, confirming the dialog took the route from 1 marker to 0 and
+  tracking stayed on. Within 20 s the next accurate fix was recorded as the start of the new route.
 
 ### D16. Starting requires precise location; a running session accepts either
 
@@ -191,7 +196,90 @@ says how it was verified:
   starting requires `ACCESS_FINE_LOCATION`. A session that is already running only checks for either
   location permission before `startForeground`, because the platform accepts either for a location
   foreground service.
-- **Evidence:** Decided, not implemented yet.
+- **Evidence:** Measured on a Galaxy S23. With only approximate location granted, tracking did not start,
+  no service ran, and the screen asked for precise location. The upgrade prompt is covered in D18.
+
+### D17. Starting, running and losing the tracking service
+
+- **Start with `startService`, then `startForeground` inside the service.**
+  - **Rejected: `startForegroundService`.** It obliges the service to call `startForeground` within seconds.
+    On targetSdk 34+, a location-typed `startForeground` throws without a location permission. A session
+    that has to end for lack of permission would then have to break one rule or the other. With
+    `startService`, ending without ever calling `startForeground` breaks nothing. Sessions are started
+    from the foreground app, where `startService` is allowed. The notification's Stop action sends its command
+    through a `PendingIntent` while the service is already running. That was measured only with the app
+    directly behind the notification shade, not from a fully backgrounded app.
+- **Order inside the service: permission → `startForeground` → location updates.**
+  - **Permission first,** asked through `ContextCompat.checkSelfPermission`. The fused provider reports a
+    missing permission only asynchronously, so a normal return would prove nothing.
+  - **Foreground second:** for a user-started session the app is in the foreground, so promotion is
+    allowed. Location is never requested by a service that is not yet foreground.
+  - **Rejected: permission → updates → foreground,** the order used in the author's own app. It works too,
+    but when the platform refuses `startForeground` the location updates already registered have to be
+    removed again. Here a refusal leaves nothing to undo.
+- **Refusals end the session cleanly.** `SecurityException` (no permission) and
+  `ForegroundServiceStartNotAllowedException` (started from the background) are caught. An exception
+  thrown out of `onStartCommand` crashes the app, after which `START_STICKY` restarts the service into
+  the same throw. When the session ends without the user stopping it, a "Tracking stopped, your route
+  is saved" notification is posted.
+- **A lost session is ended, not silently resumed** (the author's decision): location tracking never
+  restarts without the user asking. A session still marked active when the app starts, with no service
+  running in the process (after a force-stop or a reboot, when no app code ran to clear it), is cleared
+  and the screen says so.
+- **Commands are processed one at a time,** and ending uses `stopSelf(startId)`. A quick stop-then-start
+  cannot interleave, and a stop does not kill a start that arrived after it.
+- **Evidence:** Measured on a Galaxy S23 (Android 16):
+
+  | Scenario | Result |
+  |---|---|
+  | Start | `isForeground=true types=0x00000008` (location) |
+  | HOME, 45 s in the background | Fixes kept arriving. appops: `FINE_LOCATION mode=foreground` (no background permission), last access state `fgsvc`. **`ACCESS_BACKGROUND_LOCATION` is not needed** |
+  | Process killed in the background, four times | Restarted after about 6, 1, 4 and 16 s. Each time the service regained foreground location and fixes continued; 0 refusals, 0 crashes |
+  | Both location permissions revoked while tracking | System killed the process ("permissions revoked") and restarted the service 64 s later. The service ended the session 0.4 s after starting, with "no location permission", without reaching `startForeground`. 0 crashes; "Tracking stopped" notification posted |
+  | `am force-stop` while tracking | No restart scheduled within 30 s. On reopening, the notice was shown, tracking was off and the route was kept |
+  | Stop from the notification | Session ended "stopped by the user"; no "Tracking stopped" notification |
+
+- **Not reproduced here:** in the author's own app, on the same device model, a restarted service was
+  refused location foreground access. In this project it was never refused at restart delays up to
+  16 s, and the condition that triggers the refusal is unknown; a candidate is the much longer delay
+  after repeated deaths. The catch path is therefore implemented but has **not been observed in this
+  project**.
+- **Device check pending:** rotation, swiping the app away from recents, Android versions below 16,
+  long idle periods (Doze), and OEM battery management.
+
+### D18. Approximate location: when precise location is really "blocked"
+
+- **Problem:** to choose between "Allow" (show the system dialog again) and "Open settings", the usual
+  signal is `shouldShowRequestPermissionRationale(ACCESS_FINE_LOCATION)`. After the user picks
+  "approximate", it does not mean what it appears to mean.
+- **Evidence:** Measured on a Galaxy S23 (Android 16), from a clean permission state:
+
+  | Step | Rationale for FINE | Does a new request show a dialog? |
+  |---|---|---|
+  | First dialog: user picks approximate | false | **Yes**: the "change to precise location" upgrade dialog |
+  | Upgrade dialog: user keeps approximate | false | No |
+
+  The same `false` answers both situations, so it cannot distinguish them. The first implementation read it
+  as "blocked" and showed "Open settings" when the upgrade dialog was still available.
+- **Decision:** after an approximate-only result, "blocked" is concluded only if this result answers a
+  request that had already asked for the upgrade, meaning the previous issue was precise-location denied
+  or blocked. Otherwise the screen offers "Allow". After a process restart the screen may offer "Allow"
+  once more; that tap returns immediately and switches to "Open settings".
+- **Evidence for the fix:** measured on the same device. Approximate showed "Allow"; the upgrade dialog
+  appeared; keeping approximate showed "Open settings"; pressing Start twice more showed no dialog and
+  kept "Open settings". The first fix attempt flipped the card back to "Allow" at that last step, which is
+  why a previously blocked state now counts as "upgrade already requested".
+
+### D19. Location request: high accuracy, no platform distance filter
+
+- **Decision:** `PRIORITY_HIGH_ACCURACY`, 10 s interval, 5 s fastest interval. No `setMinUpdateDistanceMeters`.
+- **Rationale:** balanced power is accurate to about 100 m, as coarse as the rule itself. The interval is
+  a battery bound, not a schedule; a marker still requires 100 m. A platform distance filter would
+  measure from the last *delivered* fix, which may be one the gate rejected, while the rule measures
+  from the last *recorded* point (D10).
+- **Rejected:** a time-based fallback point while standing still. The spec asks for a marker every 100 m.
+- **Evidence:** Reasoned. Observed on a Galaxy S23: fixes about every 5 s in the foreground and every
+  10 s in the background.
 
 ---
 
@@ -209,3 +297,9 @@ says how it was verified:
 | 2026-09-16 | `:core:test` after restoring | 25 / 25 passed, from freshly generated XML |
 | 2026-09-16 | Second independent review | Confirmed 25 / 25 and the build. Removing the lock failed the concurrency test in 5 of 5 runs, so it is deterministic. Forcing the anchor to null failed 6 tests. **Found a gap:** `RouteDao.last()` changed from `DESC` to `ASC` still passed 25 / 25, because no test reaches the real DAO (D10). Also found that a `Recorded` result can point at a row already deleted by reset (D14) |
 | 2026-09-16 | `verify-claim` skill, first run on this repo | Old results deleted, then confirmed 0 remained. `4 actionable tasks: 4 executed`, 0 FROM-CACHE, 25 / 25 from fresh XML. Positive controls: with no result files the script reports none; with a start time after the run it marks all 3 files stale and exits 1. Mutation M1 repeated: compiled, failed exactly the limit test, restored with matching md5, 25 / 25 again |
+| 2026-09-17 | Emulator plan | The installed API 37 image (16 KB pages) was still offline after 4 minutes with hardware acceleration available; stopped. A standard API 36 Google APIs image is needed for mock-location tests |
+| 2026-09-17 | Killing an app without root | `run-as <package> kill -9 <pid>` on a Galaxy S23 user build: ActivityManager logged the death. It replaces `adb root` for this test |
+| 2026-09-17 | Permission flow on device (D16, D18) | First implementation showed "Open settings" after approximate location although the upgrade dialog was still available. Fixed, then found flipping back to "Allow" when Start was pressed while blocked; fixed again. The full sequence was re-measured from a reset permission state after each fix, with the APK timestamp checked to be newer than the source |
+| 2026-09-17 | Service lifecycle on device (D17) | Foreground type, background fixes and appops, four kills, revocation, force-stop and the notification Stop action; results in D17. First notification-Stop attempt did not happen: the collapsed notification hid its action button, so the tap never occurred. Repeated after expanding the notification |
+| 2026-09-17 | Reset while tracking (D15) | Passed on device |
+| 2026-09-17 | Address on marker tap | A marker recorded before geocoding existed showed its address about 0.3 s after the tap. Offline behaviour not yet measured |

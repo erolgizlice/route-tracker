@@ -24,10 +24,11 @@ every 100 m, shows the address of a tapped marker, and keeps the route across re
   └────► :data ───────────────► :core
 ```
 
-- `:core`: pure Kotlin/JVM. Domain model, repository contracts, `DistanceGate`, `RecordFixUseCase`.
-  No Android imports, ever; the build enforces this.
-- `:data`: Room route storage and `dataModule`. Not yet implemented: DataStore session, fused location,
-  geocoder, and the tracking foreground service.
+- `:core`: pure Kotlin/JVM. Domain model, `DistanceGate`, `RecordFixUseCase`, and the contracts the UI
+  needs (`RouteRepository`, `TrackingController`, `LocationAccess`, `AddressLookup`). No Android imports,
+  ever; the build enforces this.
+- `:data`: Room route storage, DataStore session flag, `TrackingService` (fused location), notifications,
+  Geocoder, `dataModule`.
 - `:feature:tracking`: Compose UI and the MVI `TrackingViewModel`. Depends on `:core` only.
 - `:app`: `Application` (starts Koin), `MainActivity`, API key wiring. The only module that sees everything.
 
@@ -42,19 +43,27 @@ every 100 m, shows the address of a tapped marker, and keeps the route across re
   already have been deleted by a concurrent reset; an insert or upsert would bring it back (D14).
 - `RouteDao.last()` is the production anchor query and only an instrumented test can cover it. Unit
   tests use a fake repository (D10).
+- **Starting tracking requires precise location; the service itself accepts either** (D16). After an
+  approximate-only grant, a false rationale does not mean "blocked" until the upgrade was already asked (D18).
 - **Kotlin stays at 2.4.20 or later.** Do not apply `org.jetbrains.kotlin.android`; AGP 9 has built-in Kotlin (D2).
 - A Compose library module needs both the `kotlin.compose` plugin and `buildFeatures.compose` (D3).
 
-## Tracking service rules
+## Tracking service rules (D17)
 
+- Start with **`startService`**, then call `startForeground` inside the service. Never `startForegroundService`:
+  it demands `startForeground` within seconds, which throws when the permission is gone.
 - Order: **permission check → `startForeground` → request location updates.** On targetSdk 34+,
   `startForeground` with the location type throws when no location permission is held.
 - Ask the platform directly with `ContextCompat.checkSelfPermission`. The fused provider reports a
   missing permission asynchronously, so a normal return proves nothing.
 - The service's pre-`startForeground` check accepts either FINE or COARSE, as the platform does.
   This is a crash guard, not the product rule: the UI requires FINE to *start* tracking (D16).
-- Wrap `startForeground` in try/catch. A service restarted from the background cannot obtain location
-  access; end the session cleanly instead of crash-looping.
+- Wrap `startForeground` in try/catch and end the session cleanly on refusal, posting the "tracking stopped"
+  notification. A restarted service *may* be refused location access. That was seen in the author's own
+  app, but not reproduced in this project (D17), so do not claim it happens here.
+- Commands go through one channel and end with `stopSelf(startId)`, so stop-then-start cannot interleave.
+- A lost session is ended, never silently resumed; a stale active flag found at app start is cleared
+  and the user is told.
 - With `START_STICKY` the restart `Intent` is `null`. Everything needed to resume is read from
   persistent storage, never from intent extras.
 - In `onDestroy`, remove the location callback first. A leaked callback keeps GPS on.
@@ -62,6 +71,10 @@ every 100 m, shows the address of a tapped marker, and keeps the route across re
 
 ## How to work here
 
+- Before a claim about builds or tests, follow the `verify-claim` skill. Before testing on a device or
+  emulator, follow the `device-check` skill.
+- **Never commit screenshots, recordings or logs from a physical device:** they carry the tester's real
+  location. README media comes from an emulator on a made-up route.
 - **Measure, don't infer.** Read build and test logs, not exit codes. Delete old test results before
   quoting pass counts; stale XML has already produced a false result once.
 - Label evidence in `docs/decisions.md` as Measured, Reasoned, or Device check pending, and add
