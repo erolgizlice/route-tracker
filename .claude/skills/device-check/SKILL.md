@@ -104,3 +104,22 @@ image with 16 KB pages did not finish booting within 4 minutes on this Intel Mac
 | Instrumented tests | `ANDROID_SERIAL=$E ./gradlew :data:connectedDebugAndroidTest` | Without `ANDROID_SERIAL` the tests also run on the phone. Results land in `data/build/outputs/androidTest-results/connected/debug/` |
 
 GPX route playback (Extended Controls → Location → Routes) is **unverified**.
+
+## Recording a demo
+
+Each point below cost a failed take (verification log, "Demo recording").
+
+- **No `uiautomator` while `screenrecord` runs:** the dump fails with "null root node". Measure tap
+  coordinates beforehand, then wait for readiness during the take. For the app, poll a pixel of a known
+  button in a raw `adb exec-out screencap` (no PNG decoding needed). For a system dialog, poll
+  `dumpsys window | grep mCurrentFocus`.
+- **The first launch after install shows the splash screen for several seconds.** A fixed sleep is not
+  enough; wait for readiness.
+- **Match fixes to the location request,** or marker gaps grow past 150 m: fixes at least 6 s apart in the
+  foreground (fastest interval 5 s) and 10 s apart in the background.
+- **Set the start location with the app listening:** `geo fix` without an active listener does not update the
+  platform's last location, and the first recorded point would be wherever the last run ended.
+- **Clear other apps from recents first** (`am stack list`, then `am stack remove <taskId>`), and never open
+  the app drawer in a take. Personal apps installed on the emulator would appear on screen.
+- `screenrecord --size 540x1170 --bit-rate 1200000` produced about 3 MB per 90–120 s. Stop it with
+  `pkill -INT screenrecord` so the file is finalized.
