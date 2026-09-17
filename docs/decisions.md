@@ -106,7 +106,8 @@ says how it was verified:
 
 - **Rationale:** the device clock can be changed by the user or corrected by the network; the order
   points were recorded in cannot.
-- **Evidence:** Reasoned.
+- **Evidence:** Measured by the instrumented test `routeIsOrderedByRecordingEvenWhenTheClockWentBackwards`:
+  a point stamped earlier but inserted later stays last, and `last()` returns it.
 
 ---
 
@@ -123,12 +124,13 @@ says how it was verified:
 - **Evidence:** Measured at the domain level. `DistanceGateTest` (11 tests) and `RecordFixUseCaseTest`
   (9 tests). The use-case tests feed fix sequences, because gate tests receive the anchor as input and
   cannot catch a caller choosing the wrong one. See the mutation checks in the verification log.
-- **Known gap, the production query:** the use-case tests run against a fake repository, so the SQL
-  that actually selects the anchor, `RouteDao.last()`, is not covered by any test. Measured in an
-  independent review: changing `ORDER BY id DESC` to `ASC` compiled, and all 25 tests still passed.
-  In the app, that bug would anchor every fix to the route's start, so once the user is 100 m away,
-  every update would add a marker. Planned: an instrumented in-memory Room test for `last()` and
-  `deleteAll()`, then the same mutation repeated to show that the test catches it.
+- **The production query, a gap that is now closed:** the use-case tests run against a fake repository, so
+  at first nothing covered `RouteDao.last()`, the SQL that actually selects the anchor. An independent review
+  measured it: changing `ORDER BY id DESC` to `ASC` compiled, and all 25 tests still passed. In the app,
+  that bug would anchor every fix to the route's start, so once the user is 100 m away, every update would
+  add a marker. `RouteDaoTest` (6 instrumented tests, in-memory Room) now covers `last()`, insertion order,
+  `deleteAll()` and the address update. The same mutation now fails exactly the two tests that read the
+  last point (M5 in the verification log).
 
 ### D11. The first accurate fix is the start marker
 
@@ -150,8 +152,9 @@ says how it was verified:
   later a 14 m fix became the start of the route. Later a 173 m fix arrived in the background and was
   also rejected. In that session good fixes were 6–27 m and coarse ones 100–173 m, so 50 m separated
   them cleanly. **That is one session on one device: the threshold remains a judgment, not a tuned value.**
-  Device check pending: emulator mock locations (`adb emu geo fix`, GPX routes) must carry an accuracy
-  value, or nothing will be recorded during emulator testing.
+  Mock locations were checked too, because a fix without accuracy would make emulator testing record
+  nothing. On an API 33 emulator, `adb emu geo fix` fixes arrive with an accuracy of 5.0 m and are
+  recorded. GPX route playback has not been checked.
 
 ### D13. Haversine instead of `Location.distanceBetween`
 
@@ -239,13 +242,21 @@ says how it was verified:
   | `am force-stop` while tracking | No restart scheduled within 30 s. On reopening, the notice was shown, tracking was off and the route was kept |
   | Stop from the notification | Session ended "stopped by the user"; no "Tracking stopped" notification |
 
+  On an Android 13 emulator (API 33, Google APIs):
+
+  | Scenario | Result |
+  |---|---|
+  | 480 m walk from `geo fix` in 40 m steps, one third of it in the background | 5 points, spaced 108, 111, 125 and 126 m apart; a point was recorded while in the background; 0 crashes |
+  | Four rotations (orientation forced through system settings, confirmed by screenshot size) | 4 Activity relaunches, same process, `lastStartId` unchanged (no new start command), marker count unchanged |
+  | Task swiped away from recents | Task removed from recents; same process, still a foreground service, and the next point was recorded |
+
 - **Not reproduced here:** in the author's own app, on the same device model, a restarted service was
   refused location foreground access. In this project it was never refused at restart delays up to
   16 s, and the condition that triggers the refusal is unknown; a candidate is the much longer delay
   after repeated deaths. The catch path is therefore implemented but has **not been observed in this
   project**.
-- **Device check pending:** rotation, swiping the app away from recents, Android versions below 16,
-  long idle periods (Doze), and OEM battery management.
+- **Device check pending:** long idle periods (Doze), OEM battery management and OEM behaviour when a task
+  is swiped away (measured on stock Android only), and Android 8–12 (API 26–32).
 
 ### D18. Approximate location: when precise location is really "blocked"
 
@@ -281,6 +292,36 @@ says how it was verified:
 - **Evidence:** Reasoned. Observed on a Galaxy S23: fixes about every 5 s in the foreground and every
   10 s in the background.
 
+### D20. Declare the Apache HTTP legacy library
+
+- **Problem:** the map renderer is loaded from the device's Google Play services, not from the app. On an
+  Android 13 emulator with Play services 23.18.18, the app crashed as the map loaded:
+  `NoClassDefFoundError: org/apache/http/ProtocolVersion`. Apps targeting API 28+ must request that library
+  explicitly. The Galaxy S23, with Play services 26.33.32, never showed the crash, but a reviewer's older
+  emulator would crash on first launch.
+- **Decision:** `<uses-library android:name="org.apache.http.legacy" android:required="false"/>` in the
+  `:feature:tracking` manifest, next to the map dependency.
+- **Evidence:** Measured by mutation on that emulator. With the line removed from the merged manifest the
+  same crash returned; with it restored, the app ran with 0 crashes.
+
+### D21. When addresses are resolved
+
+- **Decision:** resolve a point's address in the background right after it is recorded and store it; if that
+  fails, try again when the marker is tapped. Recording never waits for the network, and a stored address
+  keeps working offline. The write is a plain `UPDATE` by id (D14).
+- **Rejected:** resolving only on tap (every tap would need the network, and the first look at an old route
+  would be slow). Also rejected: blocking the recording on the geocoder.
+- **Failure is an expected result:** no geocoder, a timeout (10 s), offline, or a rate limit returns null.
+  The card then says the address is unavailable and offers Retry.
+- **Evidence:** Measured.
+  - Galaxy S23: a marker recorded before geocoding existed showed its address about 0.3 s after the tap.
+  - API 33 emulator: 2 of 5 points received their address when recorded, while the other 3 stayed empty.
+    The reason was not captured, because the logs had been cleared between tests. Tapping one of them
+    showed "Looking up address…" and the address about 6 s later, stored in the database.
+  - Offline (Wi-Fi and data off, 0 ping replies): the card showed "Address unavailable" with Retry. The
+    resolver logged `UNAVAILABLE: Unable to resolve host` and nothing crashed. After reconnecting, Retry
+    showed the address within 8 s, and tracking stayed on throughout.
+
 ---
 
 ## Verification log
@@ -302,4 +343,11 @@ says how it was verified:
 | 2026-09-17 | Permission flow on device (D16, D18) | First implementation showed "Open settings" after approximate location although the upgrade dialog was still available. Fixed, then found flipping back to "Allow" when Start was pressed while blocked; fixed again. The full sequence was re-measured from a reset permission state after each fix, with the APK timestamp checked to be newer than the source |
 | 2026-09-17 | Service lifecycle on device (D17) | Foreground type, background fixes and appops, four kills, revocation, force-stop and the notification Stop action; results in D17. First notification-Stop attempt did not happen: the collapsed notification hid its action button, so the tap never occurred. Repeated after expanding the notification |
 | 2026-09-17 | Reset while tracking (D15) | Passed on device |
-| 2026-09-17 | Address on marker tap | A marker recorded before geocoding existed showed its address about 0.3 s after the tap. Offline behaviour not yet measured |
+| 2026-09-17 | Address on marker tap | A marker recorded before geocoding existed showed its address about 0.3 s after the tap |
+| 2026-09-17 | API 33 emulator crash (D20) | The first launch crashed in the Play services map renderer. Diagnosed from the crash buffer, fixed, then confirmed by mutation: the crash returns without the manifest line and disappears with it |
+| 2026-09-17 | Mock location accuracy (D12) | `geo fix` fixes carry 5.0 m accuracy and are recorded |
+| 2026-09-17 | Walk simulation (D17) | 5 points spaced 108–126 m apart, including in the background. **The rotation part of this run was invalid:** `emu rotate` and `dumpsys` readings did not match a screenshot taken afterwards. Rotation was repeated by forcing orientation through system settings, with each rotation confirmed by screenshot size |
+| 2026-09-17 | Address retry and offline (D21) | **First attempt invalid:** the old map renderer does not expose markers to accessibility, so every tap failed, and the helper's "NOT FOUND" output had been discarded. Repeated by tapping coordinates read from a screenshot, checking each opened card's coordinates against the database |
+| 2026-09-17 | Swipe away from recents (D17) | **First attempt invalid:** the swipe missed and the task stayed in recents. Repeated with the recents screen verified by screenshot; the task was removed and tracking continued |
+| 2026-09-17 | Instrumented result location | Connected test XML lands in `build/outputs/androidTest-results/connected/<variant>/`. `verify-claim` had reported 25 tests and ignored those 6; the skill now covers both locations |
+| 2026-09-17 | Mutation M5: `last()` DESC → ASC | Previously passed all 25 tests (D10 gap). Now: compiled, 58 of 58 tasks executed, 0 from cache, and exactly `lastReturnsTheMostRecentlyRecordedPoint` and `routeIsOrderedByRecordingEvenWhenTheClockWentBackwards` failed. Restored with matching md5: 31 / 31 |

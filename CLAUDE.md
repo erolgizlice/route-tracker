@@ -13,6 +13,7 @@ every 100 m, shows the address of a tapped marker, and keeps the route across re
 ./gradlew assembleDebug      # build
 ./gradlew :core:test         # the business rules, pure JVM, seconds
 ./gradlew installDebug       # install on a connected device or emulator
+ANDROID_SERIAL=emulator-5554 ./gradlew :data:connectedDebugAndroidTest   # Room SQL; pin one device
 ```
 
 `local.properties` needs `sdk.dir` and `MAPS_API_KEY`. Both stay out of git.
@@ -41,8 +42,8 @@ every 100 m, shows the address of a tapped marker, and keeps the route across re
 - **Fixes with missing or poor accuracy are rejected before the anchor check** (D12).
 - **Write an address only with `UPDATE route_points SET address = ? WHERE id = ?`.** A `Recorded` point may
   already have been deleted by a concurrent reset; an insert or upsert would bring it back (D14).
-- `RouteDao.last()` is the production anchor query and only an instrumented test can cover it. Unit
-  tests use a fake repository (D10).
+- `RouteDao.last()` is the production anchor query. Unit tests use a fake repository, so only the
+  instrumented `RouteDaoTest` covers it (D10). Run that test after any change to `RouteDao`.
 - **Starting tracking requires precise location; the service itself accepts either** (D16). After an
   approximate-only grant, a false rationale does not mean "blocked" until the upgrade was already asked (D18).
 - **Kotlin stays at 2.4.20 or later.** Do not apply `org.jetbrains.kotlin.android`; AGP 9 has built-in Kotlin (D2).
@@ -81,4 +82,5 @@ every 100 m, shows the address of a tapped marker, and keeps the route across re
   experiments to its verification log.
 - A new rule in `:core` gets a test that fails when the rule is broken; check it with a deliberate mutation.
 - Code, comments, commits and docs are in English. Conventional Commits, small and focused.
+- **Commit, but do not push.** The author reviews every commit before pushing.
 - Never commit `local.properties`, API keys, or `.claude/settings.local.json`.

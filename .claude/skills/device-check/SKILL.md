@@ -87,16 +87,20 @@ Action buttons on a collapsed notification are hidden (seen on Samsung). Swipe d
 title to expand it (`input swipe x y x y+400 300`) before tapping "Stop". Collapse the shade afterwards
 with `cmd statusbar collapse`.
 
-## Emulator only (unverified)
+## Emulator
 
-Use a standard Google APIs x86_64 image. The API 37 image with 16 KB pages did not finish booting within
-4 minutes on this Intel Mac.
+Use a standard 4 KB-page Google APIs x86_64 image. The `Pixel_5` AVD (API 33) booted in about 10 s; the API 37
+image with 16 KB pages did not finish booting within 4 minutes on this Intel Mac. Its old Play services
+(23.18.18) is also what exposed the crash in D20, which makes it a useful test.
 
-```bash
-$ADB -s emulator-5554 emu geo fix <longitude> <latitude>   # unverified; longitude comes first
-$ADB -s emulator-5554 emu rotate                           # unverified
-```
+| Need | Command | What happened here |
+|---|---|---|
+| Move | `$ADB -s $E emu geo fix <longitude> <latitude>` (longitude first) | Fixes arrived with 5.0 m accuracy and were recorded. For a walk, step latitude by 0.00035972 per 40 m |
+| Rotate | `settings put system accelerometer_rotation 0`, then `settings put system user_rotation 1` / `0` | Confirm each rotation by the screenshot's width and height. `emu rotate` was unreliable, and a `dumpsys` reading disagreed with the screenshot. Restore `accelerometer_rotation 1` afterwards |
+| Offline | `svc wifi disable; svc data disable` (and `enable`) | Confirm with `ping -c 2 -W 2 8.8.8.8` returning 0 replies. Do this on the emulator, never on a personal phone |
+| Read the route | `$ADB -s $E root`, then `$ADB -s $E shell "sqlite3 /data/data/$P/databases/route.db 'SELECT id, latitude, longitude, address FROM route_points'"` | Works on Google APIs images; Play Store images cannot be rooted |
+| Tap a marker | Coordinates from a screenshot | This image's map renderer does not expose markers to accessibility, so `droid.py tap "Route marker N"` fails here, unlike on the S23. Check that the card's coordinates match the database row |
+| Swipe away | `input keyevent KEYCODE_APP_SWITCH`, screenshot, then `input swipe 540 1300 540 80 120` on the card | Confirm with `dumpsys activity recents`: the package must no longer be listed. The first attempt missed silently |
+| Instrumented tests | `ANDROID_SERIAL=$E ./gradlew :data:connectedDebugAndroidTest` | Without `ANDROID_SERIAL` the tests also run on the phone. Results land in `data/build/outputs/androidTest-results/connected/debug/` |
 
-- Confirm that mock fixes carry an accuracy value; the gate rejects fixes without one (D12).
-- A GPX route can be played from Extended Controls → Location → Routes.
-- Test offline address lookup by turning off networking on the emulator, not on a personal phone.
+GPX route playback (Extended Controls → Location → Routes) is **unverified**.
