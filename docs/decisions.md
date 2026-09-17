@@ -239,8 +239,10 @@ says how it was verified:
     closed that way, location tracking restarts only when the user asks.
 - **Fixes still queued when a session ends are dropped.** Ending a session first clears an in-memory flag
   that the recorder checks, before anything that can suspend. Otherwise a fix already in the channel could
-  be recorded just after Stop. The window is milliseconds and was not triggered on a device, so this part is
-  reasoned. On the Android 13 emulator, recording was checked across start → stop → start: points were
+  be recorded just after Stop. The flag narrows the window but does not close it: a fix already inside
+  `RecordFixUseCase` when Stop arrives still completes. Closing that too would mean checking the session
+  inside the use case's lock, which is not worth it for at most one point, milliseconds apart. The window
+  was not triggered on a device, so this part is reasoned. On the Android 13 emulator, recording was checked across start → stop → start: points were
   recorded while tracking, none while stopped, and recording resumed after restarting.
 - **Commands are processed one at a time,** and ending uses `stopSelf(startId)`. A quick stop-then-start
   cannot interleave, and a stop does not kill a start that arrived after it.
@@ -334,6 +336,18 @@ says how it was verified:
   - Offline (Wi-Fi and data off, 0 ping replies): the card showed "Address unavailable" with Retry. The
     resolver logged `UNAVAILABLE: Unable to resolve host` and nothing crashed. After reconnecting, Retry
     showed the address within 8 s, and tracking stayed on throughout.
+
+### D22. Stop and Start continue the same route
+
+- **Decision:** stopping tracking does not end the route; only Reset does. After Start, the next accurate fix
+  is measured against the last point of the existing route. If the user moved while tracking was stopped,
+  that fix is recorded, and the polyline joins the two points with a straight line across the gap.
+- **Rejected:** splitting the route into segments per session. That needs a session id on every point, a
+  Room schema migration, and per-segment polylines, which is outside the case's scope.
+- **Evidence:** Measured on the Android 13 emulator (verification log, "Recording across stop and restart").
+  The emulator moved 144 m while tracking was stopped, and the first point after Start was recorded there.
+- **README:** listed as a known limitation. The demo recording either explains it or does not move while
+  tracking is stopped.
 
 ---
 
