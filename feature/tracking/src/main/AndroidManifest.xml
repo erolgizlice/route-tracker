@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- The map renderer is loaded from the device's Google Play services. Older versions of it use the
+             Apache HTTP client, which apps targeting API 28+ must request explicitly; without this line the
+             app crashes as the map loads (NoClassDefFoundError: org/apache/http/ProtocolVersion), as measured
+             on an emulator with Play services 23.18.18. See docs/decisions.md D20. -->
+        <uses-library
+            android:name="org.apache.http.legacy"
+            android:required="false" />
+    </application>
+
+</manifest>
