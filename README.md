@@ -10,22 +10,24 @@ Every design decision, the alternative it beat, and how it was verified is in
 
 ## Demo
 
-Recorded on an emulator with a scripted route: a made-up 660 m walk along İstiklal Caddesi, Istanbul, from
-Taksim to Galatasaray (API 33 emulator, `adb emu geo fix`).
+Recorded on an emulator with a scripted route: a made-up 707 m route along İstiklal Caddesi, Istanbul, from
+Taksim to Galatasaray. The location is sent once a second with `adb emu geo fix`, at about 11 m per second.
+Both clips play in real time; they were captured with the emulator's own recorder on an API 36 emulator.
 
-- [Clip 1: fresh install, precise location, start, walk, background, notification, return](docs/media/clip1-tracking.mp4) (54 s)
-- [Clip 2: address on tap, stop, swipe away from recents, reopen, reset](docs/media/clip2-address-stop-reset.mp4) (40 s)
+- [Clip 1: fresh install, precise location, start, walk, background, notification, return](docs/media/clip1-tracking.mp4) (105 s)
+- [Clip 2: address on tap, stop, swipe away from recents, reopen, reset](docs/media/clip2-address-stop-reset.mp4) (38 s)
 
-Waits between location updates are shortened: no frame stays on screen longer than 1 s, except the final frame
-of clip 2 at 1.2 s; everything else plays at real speed. The waits come from the location request, at most every 5 s in
-the foreground and 10 s in the background (D19).
+Clip 1 stops moving for a few seconds before the app goes to the background, and the notification shade stays
+open while the route continues in the background. In an earlier take, the first location delivery after that
+switch arrived 18 s late and the next marker landed 196 m after the previous one (verification log, "Demo
+re-recorded").
 
 | Route, with markers recorded in the background | Notification while in the background | Address of a tapped marker |
 |---|---|---|
 | <img src="docs/media/route.png" width="240" alt="Route along İstiklal Caddesi with six markers"> | <img src="docs/media/notification.png" width="240" alt="Foreground service notification showing the marker count"> | <img src="docs/media/address.png" width="240" alt="Details card with the address of a marker"> |
 
-In clip 1 the markers are 145, 109, 112, 107 and 110 m apart, and the last two were recorded while the app
-was in the background (verification log, "Demo recording").
+In clip 1 the markers are 110, 110, 110, 143, 110 and 110 m apart. The last three were recorded while the app was
+in the background, and the notification's marker count rises from 4 to 7 (verification log, "Demo re-recorded").
 
 ## Requirements and where they are implemented
 

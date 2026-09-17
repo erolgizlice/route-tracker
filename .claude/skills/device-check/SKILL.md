@@ -107,19 +107,31 @@ GPX route playback (Extended Controls → Location → Routes) is **unverified**
 
 ## Recording a demo
 
-Each point below cost a failed take (verification log, "Demo recording").
+Each point below cost a failed take (verification log, "Demo recording" and "Demo re-recorded").
 
-- **No `uiautomator` while `screenrecord` runs:** the dump fails with "null root node". Measure tap
-  coordinates beforehand, then wait for readiness during the take. For the app, poll a pixel of a known
-  button in a raw `adb exec-out screencap` (no PNG decoding needed). For a system dialog, poll
-  `dumpsys window | grep mCurrentFocus`.
-- **The first launch after install shows the splash screen for several seconds.** A fixed sleep is not
-  enough; wait for readiness.
-- **Match fixes to the location request,** or marker gaps grow past 150 m: fixes at least 6 s apart in the
-  foreground (fastest interval 5 s) and 10 s apart in the background.
-- **Set the start location with the app listening:** `geo fix` without an active listener does not update the
-  platform's last location, and the first recorded point would be wherever the last run ended.
-- **Clear other apps from recents first** (`am stack list`, then `am stack remove <taskId>`), and never open
-  the app drawer in a take. Personal apps installed on the emulator would appear on screen.
-- `screenrecord --size 540x1170 --bit-rate 1200000` produced about 3 MB per 90–120 s. Stop it with
-  `pkill -INT screenrecord` so the file is finalized.
+- **Record on the host, not in the guest.** `adb shell screenrecord` writes a frame only when the screen changes
+  and loads the emulator while it encodes, which made the clips stutter and jump. Use
+  `adb -s $E emu screenrecord start --fps 30 /abs/path/take.webm`, then `adb -s $E emu screenrecord stop`. It ignores
+  `--bit-rate`, so convert to H.264 at a constant frame rate:
+  `ffmpeg -i take.webm -vf fps=30 -c:v libx264 -preset slow -crf 22 -pix_fmt yuv420p -movflags +faststart -an clip.mp4`.
+- **Use a current system image with enough resources.** The API 33 image's old Play services (23.18.18) needed the
+  legacy HTTP library (D20). An API 36 Google APIs image (Play services 25.26.35) with 6 cores, 6 GB RAM and
+  `-gpu host` recorded at a steady ~26 frames per second (median 39 ms between frames).
+- **Move smoothly and match the location request:** one `geo fix` per second, at about 11 m/s, gives a marker
+  every ~110 m with the 5 s (foreground) and 10 s (background) delivery intervals. Keep full-size screenshots
+  out of a take: extract README frames from the final video afterwards (`ffmpeg -ss T -i clip.mp4 -frames:v 1`).
+- **Stand still across the switch to the background.** The first delivery after HOME can arrive late; if the
+  location keeps moving, the next marker lands far past 150 m. Keep the notification shade open during the
+  background part, so the rising marker count shows that tracking continues.
+- **No `uiautomator` during a take** (the guest recorder made it fail with "null root node"). Measure tap
+  coordinates beforehand. During the take, confirm each tap had its effect before the next one: sample a pixel
+  of a button with a raw `adb exec-out screencap` (16-byte header), away from its label. The Start button's label
+  sits on (883, 2120); its background at (960, 2120) reads purple for Start and red for Stop. For system dialogs,
+  wait for `dumpsys window | grep mCurrentFocus`.
+- **Do not tap a marker that overlaps the my-location dot** (the last recorded point, while standing still). The
+  tap sometimes goes to the dot, the card does not open, and the next blind tap lands on Stop or Start. Test
+  the chosen marker three times before recording.
+- **The first launch after install shows the splash screen for several seconds;** wait for readiness, not a
+  fixed sleep. Set the start location with the app listening, because `geo fix` without a listener does not
+  update the last known location. Clear other apps from recents (`am stack list`, `am stack remove <taskId>`),
+  and never open the app drawer in a take.
