@@ -37,6 +37,20 @@ android {
         compose = true
         buildConfig = true
     }
+    buildTypes {
+        // A release-like build for startup measurements: minified, resources shrunk and not debuggable,
+        // but signed with the debug key, because the Maps key is restricted to the debug certificate.
+        create("benchmark") {
+            initWith(getByName("release"))
+            isMinifyEnabled = true
+            isShrinkResources = true
+            isDebuggable = false
+            signingConfig = signingConfigs.getByName("debug")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            // The library modules have no benchmark build type; use their release variant.
+            matchingFallbacks += listOf("release")
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
