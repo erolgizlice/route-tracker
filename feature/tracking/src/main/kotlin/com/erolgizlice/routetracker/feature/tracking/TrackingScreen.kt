@@ -133,67 +133,26 @@ internal fun TrackingScreen(
     hasMapsApiKey: Boolean,
     onIntent: (TrackingIntent) -> Unit,
 ) {
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(DefaultCameraTarget, DefaultZoom)
-    }
-    // Saveable: a rotation must not yank the camera back after the user has panned away.
-    var hasCenteredOnRoute by rememberSaveable { mutableStateOf(false) }
-    val hasRoute = state.points.isNotEmpty()
-    var isMapLoaded by remember { mutableStateOf(false) }
-    // What "started" means for this screen: the stored route is loaded and the map has finished rendering.
-    // Without this, `am start -W` and startup profilers stop at the first frame, which is still an empty map.
-    ReportDrawnWhen { !state.isLoading && isMapLoaded }
-    val resources = LocalContext.current.resources
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val safeDrawing = WindowInsets.safeDrawing.asPaddingValues()
     // The bottom overlay is measured so the map keeps the Google logo, which must stay visible, above it.
     var bottomOverlayHeight by remember { mutableStateOf(0.dp) }
 
-    // Keyed on route presence, not only on loading: on a fresh install the route is still empty when
-    // loading finishes, and the first recorded point must center the camera when it arrives later.
-    LaunchedEffect(state.isLoading, hasRoute) {
-        when {
-            state.isLoading -> Unit
-            !hasRoute -> hasCenteredOnRoute = false // after a reset, center on the next route again
-            !hasCenteredOnRoute -> {
-                hasCenteredOnRoute = true
-                cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(state.points.last().latLng, RouteZoom))
-            }
-        }
-    }
-
     Box(modifier = Modifier.fillMaxSize()) {
-        GoogleMap(
-            modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraPositionState,
-            // The my-location layer throws a SecurityException without a location permission.
-            properties = MapProperties(isMyLocationEnabled = state.hasLocationPermission),
-            uiSettings = MapUiSettings(zoomControlsEnabled = false, myLocationButtonEnabled = state.hasLocationPermission),
-            contentPadding = PaddingValues(
-                start = safeDrawing.calculateStartPadding(layoutDirection),
-                top = safeDrawing.calculateTopPadding(),
-                end = safeDrawing.calculateEndPadding(layoutDirection),
-                bottom = maxOf(safeDrawing.calculateBottomPadding(), bottomOverlayHeight),
-            ),
-            onMapClick = { onIntent(TrackingIntent.SelectionDismissed) },
-            onMapLoaded = { isMapLoaded = true },
-        ) {
-            if (state.points.size > 1) {
-                Polyline(points = state.points.map { it.latLng }, width = 8f)
-            }
-            state.points.forEachIndexed { index, point ->
-                key(point.id) {
-                    Marker(
-                        state = rememberUpdatedMarkerState(position = point.latLng),
-                        contentDescription = resources.getString(R.string.marker_content_description, index + 1),
-                        onClick = {
-                            onIntent(TrackingIntent.MarkerClicked(point.id))
-                            true // consume: details are shown in our own card, not the info window
-                        },
-                    )
-                }
-            }
+        // The map waits for the stored route, so that its camera can open on the route instead of
+        // opening on a default view of the city and moving a moment later (D24).
+        if (!state.isLoading) {
+            RouteMap(
+                state = state,
+                onIntent = onIntent,
+                contentPadding = PaddingValues(
+                    start = safeDrawing.calculateStartPadding(layoutDirection),
+                    top = safeDrawing.calculateTopPadding(),
+                    end = safeDrawing.calculateEndPadding(layoutDirection),
+                    bottom = maxOf(safeDrawing.calculateBottomPadding(), bottomOverlayHeight),
+                ),
+            )
         }
 
         Column(
@@ -241,6 +200,72 @@ internal fun TrackingScreen(
             onConfirm = { onIntent(TrackingIntent.ResetConfirmed) },
             onDismiss = { onIntent(TrackingIntent.ResetDismissed) },
         )
+    }
+}
+
+/**
+ * The map, and the route drawn on it.
+ *
+ * Composed only once the stored route is known: the camera then opens where the route is, instead of
+ * opening on a default view and moving there afterwards (D24).
+ */
+@Composable
+private fun RouteMap(
+    state: TrackingState,
+    onIntent: (TrackingIntent) -> Unit,
+    contentPadding: PaddingValues,
+) {
+    val points = state.points
+    val resources = LocalContext.current.resources
+    val cameraPositionState = rememberCameraPositionState {
+        position = points.lastOrNull()
+            ?.let { CameraPosition.fromLatLngZoom(it.latLng, RouteZoom) }
+            ?: CameraPosition.fromLatLngZoom(DefaultCameraTarget, DefaultZoom)
+    }
+    // Saveable: a rotation must not yank the camera back after the user has panned away. A route the
+    // camera opened on is already centered.
+    var hasCenteredOnRoute by rememberSaveable { mutableStateOf(points.isNotEmpty()) }
+    var isMapLoaded by remember { mutableStateOf(false) }
+    // What "started" means for this screen: the route is on screen and the map has finished rendering.
+    // Without this, `am start -W` and startup profilers stop at the first frame, which is an empty map.
+    ReportDrawnWhen { isMapLoaded }
+
+    // On a fresh install, and after a reset, the route is empty here and its first point arrives later.
+    LaunchedEffect(points.isNotEmpty()) {
+        when {
+            points.isEmpty() -> hasCenteredOnRoute = false // after a reset, center on the next route again
+            !hasCenteredOnRoute -> {
+                hasCenteredOnRoute = true
+                cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(points.last().latLng, RouteZoom))
+            }
+        }
+    }
+
+    GoogleMap(
+        modifier = Modifier.fillMaxSize(),
+        cameraPositionState = cameraPositionState,
+        // The my-location layer throws a SecurityException without a location permission.
+        properties = MapProperties(isMyLocationEnabled = state.hasLocationPermission),
+        uiSettings = MapUiSettings(zoomControlsEnabled = false, myLocationButtonEnabled = state.hasLocationPermission),
+        contentPadding = contentPadding,
+        onMapClick = { onIntent(TrackingIntent.SelectionDismissed) },
+        onMapLoaded = { isMapLoaded = true },
+    ) {
+        if (points.size > 1) {
+            Polyline(points = points.map { it.latLng }, width = 8f)
+        }
+        points.forEachIndexed { index, point ->
+            key(point.id) {
+                Marker(
+                    state = rememberUpdatedMarkerState(position = point.latLng),
+                    contentDescription = resources.getString(R.string.marker_content_description, index + 1),
+                    onClick = {
+                        onIntent(TrackingIntent.MarkerClicked(point.id))
+                        true // consume: details are shown in our own card, not the info window
+                    },
+                )
+            }
+        }
     }
 }
 
