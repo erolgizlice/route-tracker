@@ -356,6 +356,72 @@ says how it was verified:
 
 ---
 
+## Startup and the look of the map
+
+### D23. Route markers are four bitmaps, shared by every marker
+
+- **Decision:** a marker is drawn in one of four looks - the start, the points in between, the newest
+  point, and the point whose address card is open. Each look is one bitmap, drawn once with a `DrawScope`
+  and shared by every marker that uses it, so a route of a thousand points holds four bitmaps. Which look
+  a marker gets is a pure function of the index, the number of points and the selected id
+  (`routeMarkerStyle`), so it is covered by JVM unit tests instead of a screenshot.
+- **The pins are anchored at their tip and carry transparent padding.** The newest point is where the user
+  is standing, so its marker sits under the my-location dot; an icon anchored at its tip keeps its head
+  clear of the dot, and the padding makes the tap target larger than the 21 dp dot it draws.
+- **Rejected:** `MarkerComposable`, which composes Compose content for every marker; numbered markers,
+  which need one bitmap per number; and the default pin, which says nothing about which end of the route
+  it is.
+- **Evidence:** Measured (verification log, "Markers with 1000 points" and "Tapping the newest marker").
+  - 1000 points on screen, 10 s of panning, Galaxy S23, debug build: the default markers produced 583
+    frames with 1 janky frame (0.17 %) and a 99th percentile of 6 ms; the four bitmaps produced 582
+    frames, 1 janky frame, 99th percentile 6 ms. Cold start with the same 1000 points went from 3370 ms
+    to 3250 ms fully drawn, which is within the run-to-run spread.
+  - **So this is not a performance claim.** It costs nothing measurable and it adds the four looks and the
+    selected state. `dumpsys gfxinfo` counts the frames the app's own render thread produced; the map
+    draws into its own surface, so these numbers are the cost the markers put on the app, not the cost of
+    the map's own rendering.
+  - With the my-location dot exactly on the newest point, five independent trials (open the app, one tap)
+    opened that point's card five times out of five.
+
+### D24. What makes the app slow to open, measured
+
+- **Decision:** three changes, each measured on a release-like build (see the `benchmark` build type):
+  1. the map is composed only after the stored route has been read, and its camera opens on the last
+     point instead of moving there afterwards;
+  2. the map area is covered by the app's own background colour until the map reports itself loaded,
+     capped at 3 s so that a keyless or offline map still shows the route;
+  3. `ReportDrawnWhen` marks the screen fully drawn when the route and the map are both on screen, so
+     `am start -W` and startup profilers stop at something the user can use.
+- **Rejected:** `MapsInitializer.initialize` in the Activity before `setContent`. Measured on both
+  devices: no improvement, and the first frame was equal or slightly later (S23 benchmark cold start:
+  246 ms first frame and 735 ms fully drawn without it, 241 ms and 791 ms with it; the emulator was 859 /
+  2896 against 842 / 2912). The renderer already loads inside the first composition, which is why moving
+  it a few milliseconds earlier changes nothing. Also rejected: calling it from `Application`, where a
+  sticky service restart would pay for a map that has no Activity to show it (D8).
+- **Rejected:** generating a Baseline Profile for this app, which needs a macrobenchmark module and a
+  second device run; out of scope for the case. The libraries' own profiles are installed:
+  `androidx.profileinstaller` 1.4.0 is on the runtime classpath and the build compiles an ART profile
+  into the APK.
+- **Where the time goes** (S23, benchmark build, cold start with a 7-point route, medians of 5 runs):
+  process start to `Application.onCreate` 14 ms, `startKoin` 1 ms, first frame 145 ms, route read from
+  Room 216 ms, map object ready 230 ms, map finished rendering 615 ms, fully drawn 677 ms. The map's
+  tiles dominate; the app's own code is a small part of it. A debug build is about three times slower
+  throughout, which is why the numbers in the README say which build they come from.
+- **The 3 s cap was measured, not guessed.** Without a Maps key the map still reports itself loaded
+  (3.8 s on the API 36 emulator) and draws the route on its empty grid, so the placeholder goes away by
+  itself. Offline with an empty tile cache it never reports itself loaded and draws nothing at all: no
+  tiles, no markers, no my-location dot. The cap is what keeps the placeholder from covering that state,
+  and the Google logo, for good.
+- **No disk reads on the main thread from app code:** with StrictMode's thread policy on, the API 36
+  emulator logged no violations, and the S23 logged two platform font reads (`Typeface.getFullFlipFont`,
+  15 ms each) plus four that Play services suppresses in its own code.
+- **The tile bytes did not change.** Opening the camera on the route was expected to save a tile load at
+  the default zoom; on a clean install the first launch received 777 KB before the change and 777 KB
+  after it, so no tiles were saved. What changed is the first frame (246 ms to 145 ms on the S23, 859 ms
+  to 455 ms on the emulator) and that the city view is never on screen.
+
+---
+
 ## Verification log
 
 | Date | What | Result |
@@ -393,3 +459,11 @@ says how it was verified:
 | 2026-09-17 | JDK for a fresh clone | In a clone of the repository, Gradle 9.6.0 scanned the installed JDKs and started the daemon with JDK 25.0.1, matching `toolchainVersion=25` in `gradle/gradle-daemon-jvm.properties`. Downloading JDK 25 on a machine without one was not tested |
 | 2026-09-17 | Demo clips shortened | `screenrecord` writes a frame only when the screen changes, so 72.2 s of clip 1 and 45.1 s of clip 2 were frames held longer than 1 s while waiting for location updates. Re-encoded with `ffmpeg -i IN.mp4 -vf "setpts='if(eq(N,0),0,PREV_OUTPTS+min(PTS-PREV_INPTS,1.0/TB))'" -fps_mode vfr -enc_time_base:v demux -c:v libx264 -crf 23 -pix_fmt yuv420p -movflags +faststart -an OUT.mp4`. **First attempt invalid:** without `-enc_time_base:v demux` the encoder used a time base derived from the clips' average of about 4 fps and dropped frames (148 of 432, 53 of 405). With the demuxer's 1/90000 time base: 432 and 405 frames kept; clip 1 106.7 → 54.2 s and 3.04 → 1.75 MB; clip 2 73.0 → 40.0 s and 3.31 → 1.60 MB. The longest gap between frames is 1.000 s; the final frame of clip 2 stays 1.16 s. Time on screen, original → 1.0 s cap: permission dialog 2.08 → 2.08 s, reset dialog 2.97 → 2.97 s, address card 6.29 → 1.73 s. A 1.5 s cap was also made for comparison: 63.5 s and 45.0 s, address card 2.23 s. The address-card times were confirmed on a contact sheet of the frames, after a frame dump taken with `-ss` had shown the frame after the card instead |
 | 2026-09-17 | Demo re-recorded | The shortened clips still stuttered and jumped, so both clips were recorded again and replace those described in the rows above. New AVD `RouteTracker_API36`: Android 16, Google APIs x86_64, Play services 25.26.35, 6 cores, 6 GB RAM, host GPU. Recorded with the emulator's own recorder (`adb emu screenrecord start --fps 30 FILE.webm`). It ignored `--bit-rate`, producing 111 MB of VP9 for 34 s, so the clips were converted to H.264 at a constant 30 fps (`ffmpeg -i IN.webm -vf fps=30 -c:v libx264 -preset slow -crf 22 -pix_fmt yuv420p -movflags +faststart -an OUT.mp4`). A 34 s trial had a median of 39 ms and a maximum of 112 ms between captured frames. Movement: one `geo fix` per second at 11 m/s along the 707 m route. **Clip 1, four takes:** (1) gaps 108, 112, 196, 112 and 110 m, because the first delivery after HOME came 18 s late; (2) paused before HOME, gaps 110–132 m, but the background part was 35 s of a still home screen, so the shade now stays open during it; (3) gaps 108, 112, 187, 110 and 110 m, with two deliveries missed while full-size screenshots were being taken during the take; (4) valid, with no screenshots during the take: gaps 110, 110, 110, 143, 110 and 110 m, the last 3 recorded in the background, 105.4 s, 3162 frames, 7.4 MB. **Clip 2, three takes:** (1) invalid: a tap on the last marker, which sits under the my-location dot, did not open the card, so the "Close" tap landed on Stop and the "Stop" tap on Start; (2) invalid: the same marker needed a second tap; (3) valid on a marker away from the dot, whose first tap had opened the card 3 of 3 times beforehand: 37.5 s, 1126 frames, 4.9 MB. In both final clips the longest gap between frames is 33 ms. The README frames were extracted from the final clips |
+| 2026-09-17 | Startup baseline | Measured with a temporary log patch (process start to each step) and the new `benchmark` build type, medians of 5 cold starts with a 7-point route. S23: 246 ms to the first frame and 735 ms fully drawn in the benchmark build, 850 / 2285 ms in the debug build. API 36 emulator: 859 / 2896 ms benchmark, 2120 / 4725 ms debug. Clean-install first launch (3 runs): S23 302 / 1394 ms benchmark. Where the time goes is in D24 |
+| 2026-09-17 | Maps renderer preloaded early (rejected) | `MapsInitializer.initialize` in `MainActivity` before `setContent`: S23 benchmark cold start 241 ms first frame and 791 ms fully drawn against 246 / 735 without it; emulator 842 / 2912 against 859 / 2896. No gain, first frame equal or slightly later, so it was reverted (D24) |
+| 2026-09-17 | Camera opens on the route | The map is composed after the route is read. S23 benchmark cold start: first frame 246 → 145 ms, fully drawn 735 → 677 ms; emulator 859 → 455 ms and 2896 → 3106 ms. The camera log now holds one position only, the route at zoom 16, where it used to hold the default city view at zoom 11 first. A recording of a cold start confirms no city view in any frame. The expected saving in tile bytes did not happen: a clean-install first launch received 777 KB both before and after |
+| 2026-09-17 | Map placeholder | Visual change only, and the numbers agree: S23 benchmark, 145 → 151 ms to the first frame on a clean install, 1435 → 1437 ms fully drawn. The cap was checked in the two cases where the map never finishes loading; see D24 |
+| 2026-09-17 | Markers with 1000 points | 1000 points 20 m apart (denser than the 100 m rule allows, so that all of them are on screen), 10 s of panning, debug build. S23: default markers 583 frames, 1 janky (0.17 %), p99 6 ms; the four shared bitmaps 582 frames, 1 janky, p99 6 ms. API 36 emulator: 87.9 % janky, p99 81 ms against 85.9 % and 77 ms - its own GPU emulation bounds both. Cold start with 1000 points, S23 debug: 3370 → 3250 ms fully drawn. No cost, and no performance claim |
+| 2026-09-17 | Tapping the newest marker | With the my-location dot exactly on the newest point, five independent trials (open the app, one tap on the pin, located from a screenshot) opened that point's card 5 / 5. Two earlier attempts were invalid: the test route had been seeded with a 66 m gap between its last two points, closer than the 100 m rule can produce, and taps at the identical pixel are dropped by `adb shell input tap` - the same 1 / 4 pattern appears with the default markers, and a few pixels of jitter gives 4 / 5 on both |
+| 2026-09-17 | Tests after the marker and startup work | `verify-claim`: 32 JVM tests (11 + 5 + 9 + 7) and 6 instrumented tests on the API 36 emulator, 38 / 38 from fresh XML, 73 of 73 tasks executed, 0 from cache. Mutation M5: letting a marker's position win over the selection failed exactly the two tests about a selected start and a selected end, compiled cleanly, and the file was restored to the same md5 |
+| 2026-09-17 | Keyless and offline build after the changes | Debug build with `MAPS_API_KEY` removed (`local.properties` restored afterwards with the same sha256): `HAS_MAPS_API_KEY = false`, the "Map unavailable" card, the route drawn on the empty grid, no crash. `BitmapDescriptorFactory` is called inside the map's content, so the marker bitmaps are built after the SDK has started. Offline with an empty tile cache: the map draws nothing at all and the placeholder goes at its 3 s cap |
