@@ -63,8 +63,10 @@ ANDROID_SERIAL=emulator-5554 ./gradlew :data:connectedDebugAndroidTest   # Room 
   notification. A restarted service *may* be refused location access. That was seen in the author's own
   app, but not reproduced in this project (D17), so do not claim it happens here.
 - Commands go through one channel and end with `stopSelf(startId)`, so stop-then-start cannot interleave.
-- A lost session is ended, never silently resumed; a stale active flag found at app start is cleared
-  and the user is told.
+- A system kill continues the same session: `START_STICKY` restarts the service and it re-runs the start
+  sequence. A session left marked active by a force-stop or reboot is ended at the next app start and the
+  user is told; tracking never starts again by itself.
+- Fixes still queued when a session ends are dropped (`acceptingFixes`, cleared first in `endSession`).
 - With `START_STICKY` the restart `Intent` is `null`. Everything needed to resume is read from
   persistent storage, never from intent extras.
 - In `onDestroy`, remove the location callback first. A leaked callback keeps GPS on.

@@ -225,10 +225,23 @@ says how it was verified:
   thrown out of `onStartCommand` crashes the app, after which `START_STICKY` restarts the service into
   the same throw. When the session ends without the user stopping it, a "Tracking stopped, your route
   is saved" notification is posted.
-- **A lost session is ended, not silently resumed** (the author's decision): location tracking never
-  restarts without the user asking. A session still marked active when the app starts, with no service
-  running in the process (after a force-stop or a reboot, when no app code ran to clear it), is cleared
-  and the screen says so.
+- **What happens to a session the user did not stop depends on whether the service survives:**
+  - **The system kills the process:** `START_STICKY` restarts the service and **the same session continues**.
+    The session is still marked active, so the restarted service runs the same permission → foreground →
+    updates sequence. This does not start a new session without the user; the user never stopped this one.
+    Measured 4 out of 4 times on the S23 (table below).
+  - **The restart is refused, or the permission is gone:** the service ends the session and posts "Tracking
+    stopped, your route is saved". The permission case was triggered here. A refused `startForeground` was
+    only seen in the author's own app.
+  - **Force-stop or reboot:** nothing restarts and no app code runs, so the session stays marked active. At
+    the next app start, an active session with no service running in the process is ended and the screen
+    says so. **Tracking does not start again by itself** (the author's decision): once the app has been
+    closed that way, location tracking restarts only when the user asks.
+- **Fixes still queued when a session ends are dropped.** Ending a session first clears an in-memory flag
+  that the recorder checks, before anything that can suspend. Otherwise a fix already in the channel could
+  be recorded just after Stop. The window is milliseconds and was not triggered on a device, so this part is
+  reasoned. On the Android 13 emulator, recording was checked across start → stop → start: points were
+  recorded while tracking, none while stopped, and recording resumed after restarting.
 - **Commands are processed one at a time,** and ending uses `stopSelf(startId)`. A quick stop-then-start
   cannot interleave, and a stop does not kill a start that arrived after it.
 - **Evidence:** Measured on a Galaxy S23 (Android 16):
@@ -350,4 +363,5 @@ says how it was verified:
 | 2026-09-17 | Address retry and offline (D21) | **First attempt invalid:** the old map renderer does not expose markers to accessibility, so every tap failed, and the helper's "NOT FOUND" output had been discarded. Repeated by tapping coordinates read from a screenshot, checking each opened card's coordinates against the database |
 | 2026-09-17 | Swipe away from recents (D17) | **First attempt invalid:** the swipe missed and the task stayed in recents. Repeated with the recents screen verified by screenshot; the task was removed and tracking continued |
 | 2026-09-17 | Instrumented result location | Connected test XML lands in `build/outputs/androidTest-results/connected/<variant>/`. `verify-claim` had reported 25 tests and ignored those 6; the skill now covers both locations |
+| 2026-09-17 | Recording across stop and restart | After adding the dropped-fix flag (D17): on the emulator, 2 points were recorded while tracking, none after Stop, and 2 after Start again. The first of those is the location the emulator had moved to while stopped, 144 m from the last point |
 | 2026-09-17 | Mutation M5: `last()` DESC → ASC | Previously passed all 25 tests (D10 gap). Now: compiled, 58 of 58 tasks executed, 0 from cache, and exactly `lastReturnsTheMostRecentlyRecordedPoint` and `routeIsOrderedByRecordingEvenWhenTheClockWentBackwards` failed. Restored with matching md5: 31 / 31 |
