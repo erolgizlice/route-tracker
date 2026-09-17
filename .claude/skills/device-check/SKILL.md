@@ -12,7 +12,20 @@ Record every result in the verification log of `docs/decisions.md`.
 ## Ground rules
 
 - **Privacy:** screenshots, screen recordings and logs from a physical device show the tester's real
-  location and addresses. Keep them in a scratch directory; never commit them. README media comes from an
+  location and addresses. Keep them in a scratch directory. **Logs from a physical device are never
+  committed,** and a recording or screenshot from one is committed only when all of these hold, otherwise
+  record on an emulator:
+  1. the location permission is revoked (`pm revoke` both `ACCESS_FINE_LOCATION` and
+     `ACCESS_COARSE_LOCATION`), so the my-location dot cannot be drawn - confirm with a screenshot;
+  2. the app's data is cleared (`pm clear`), so points recorded at real places are gone;
+  3. the route on screen is made-up and seeded into the database (see `docs/stress/README.md`);
+  4. every frame is read in a contact sheet (`ffmpeg -vf "fps=1,tile=8x2"`) and checked for real
+     addresses, account names and anything identifying in the status bar, before anything is committed;
+  5. the device is restored right afterwards and the restore is verified one item at a time: test
+     providers removed, `appops` back to `default`, Do Not Disturb off, screen timeout back to its old
+     value, app data cleared.
+
+  `docs/media/clip3-stress.mp4` was recorded this way; everything else in `docs/media/` comes from an
   emulator on a made-up route.
 - **Always pass `-s <serial>`.** A phone and an emulator are often connected at the same time.
 - **Install the debug build** (`./gradlew :app:installDebug`). The Maps key is restricted to the package name

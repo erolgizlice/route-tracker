@@ -76,8 +76,13 @@ ANDROID_SERIAL=emulator-5554 ./gradlew :data:connectedDebugAndroidTest   # Room 
 
 - Before a claim about builds or tests, follow the `verify-claim` skill. Before testing on a device or
   emulator, follow the `device-check` skill.
-- **Never commit screenshots, recordings or logs from a physical device:** they carry the tester's real
-  location. README media comes from an emulator on a made-up route.
+- **Media from a physical device only under all of these conditions,** otherwise from an emulator: the
+  location permission is revoked, so no real position can be drawn; the app's data is cleared with
+  `pm clear`, so no earlier real points remain; the route on screen is made-up and seeded into the
+  database; every frame is read in a contact sheet before anything is committed; and the device is restored
+  afterwards with the restore verified (test providers removed, appops back to default, Do Not Disturb off,
+  settings back). **Logs from a physical device are never committed.** `docs/media/clip3-stress.mp4` is the
+  only file recorded on the phone; the rest of `docs/media/` comes from an emulator on a made-up route.
 - **Measure, don't infer.** Read build and test logs, not exit codes. Delete old test results before
   quoting pass counts; stale XML has already produced a false result once.
 - Label evidence in `docs/decisions.md` as Measured, Reasoned, or Device check pending, and add

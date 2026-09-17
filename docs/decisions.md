@@ -422,6 +422,11 @@ says how it was verified:
   3 s cap. The online numbers are unchanged: S23 benchmark cold start 127 ms to the first frame and
   510 ms fully drawn before the change, 131 / 503 ms after, and a clean install 156 / 2038 ms before,
   146 / 1876 ms after (medians of 5 and 3 runs, no instrumentation in the build).
+- **The marker count is not the stored one until the route is read.** The control bar is drawn before the
+  route arrives, so it says "0 markers" for that window - measured frame by frame in clip 2, where the card
+  appears 0.65 s after the launch and the count changes from 0 to 7 half a second later, at 0.55 s. The flat
+  placeholder over the map area makes it easier to notice than the old grid did. Hiding the count until the
+  route loads would move the card's height mid-launch, so it stays as it is and is written down instead.
 - **No disk reads on the main thread from app code:** with StrictMode's thread policy on, the API 36
   emulator logged no violations, and the S23 logged two platform font reads (`Typeface.getFullFlipFont`,
   15 ms each) plus four that Play services suppresses in its own code.
@@ -488,3 +493,4 @@ says how it was verified:
 | 2026-09-17 | Sensitive-term scan, valid on the third attempt | The first run reported zero for all 25 terms, and its positive control then found nothing in the file scope. Two faults: on macOS `grep -i` does not fold the Turkish "İ" to "i", and the file scope was running without `-i` at all. Rewritten as a scan that folds case and Turkish diacritics over three scopes - 71 text files in the working tree, every commit message, every commit diff. Positive controls written in a different case and without diacritics (ISTIKLAL, GALATASARAY, ROUTE MARKER, co-authored-by) hit in every scope; all 25 terms: 0 hits. Nine binary files (eight media files and the Gradle wrapper jar) cannot be scanned and were read by eye |
 | 2026-09-17 | Tests after the final round | `verify-claim`: 32 JVM tests (11 + 5 + 9 + 7) and 6 instrumented tests on the API 36 emulator, 38 / 38 from freshly generated XML, 73 of 73 tasks executed, 0 from cache |
 | 2026-09-17 | Clean clone without a key | A clone of `polish/markers-startup` at 56979c8 with only `sdk.dir` in `local.properties`: BUILD SUCCESSFUL, 107 of 107 tasks executed, `HAS_MAPS_API_KEY = false`, 32 JVM tests passed, and `git status --porcelain` empty. `docs/media` is absent from the clone, because the media is not committed yet |
+| 2026-09-17 | The marker count while the route is read | Measured frame by frame in clip 2 rather than estimated: the crop of the count line matches "0 markers" from 21.75 s to 22.30 s and "7 markers" from 22.30 s, so the wrong count is on screen for 0.55 s, after 0.65 s of launch screen. A review estimate of about 2 s covered the whole reopen, from the tap to the route on screen (D24) |
