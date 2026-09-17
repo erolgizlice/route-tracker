@@ -407,11 +407,21 @@ says how it was verified:
   Room 216 ms, map object ready 230 ms, map finished rendering 615 ms, fully drawn 677 ms. The map's
   tiles dominate; the app's own code is a small part of it. A debug build is about three times slower
   throughout, which is why the numbers in the README say which build they come from.
+- **While the route is being read there is neither a map nor a placeholder on screen**, because both of
+  them live inside the same condition. The window is short - 216 ms on the S23 in the benchmark build -
+  and it shows the window background, the same colour as the placeholder, so there is nothing to see
+  happening: the launch screen hands over to a surface of one colour and the map appears inside it.
 - **The 3 s cap was measured, not guessed.** Without a Maps key the map still reports itself loaded
   (3.8 s on the API 36 emulator) and draws the route on its empty grid, so the placeholder goes away by
   itself. Offline with an empty tile cache it never reports itself loaded and draws nothing at all: no
   tiles, no markers, no my-location dot. The cap is what keeps the placeholder from covering that state,
   and the Google logo, for good.
+- **"Fully drawn" reports at the cap as well** (`isMapLoaded || placeholderTimedOut`). Offline with an
+  empty tile cache the map never reports itself loaded, so the screen used to never be reported fully
+  drawn at all; it now reports 5.3 s after launch on the emulator, which is the 2.2 s route read plus the
+  3 s cap. The online numbers are unchanged: S23 benchmark cold start 127 ms to the first frame and
+  510 ms fully drawn before the change, 131 / 503 ms after, and a clean install 156 / 2038 ms before,
+  146 / 1876 ms after (medians of 5 and 3 runs, no instrumentation in the build).
 - **No disk reads on the main thread from app code:** with StrictMode's thread policy on, the API 36
   emulator logged no violations, and the S23 logged two platform font reads (`Typeface.getFullFlipFont`,
   15 ms each) plus four that Play services suppresses in its own code.
