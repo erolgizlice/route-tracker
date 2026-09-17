@@ -7,6 +7,7 @@ data class TrackingState(
     val points: List<RoutePoint> = emptyList(),
     /** Derived from [points], so a route reset closes the details card by construction. */
     val selectedPoint: RoutePoint? = null,
+    val addressStatus: AddressStatus = AddressStatus.Idle,
     val isTracking: Boolean = false,
     /** Any location permission; enables the my-location layer, which throws without one. */
     val hasLocationPermission: Boolean = false,
@@ -25,6 +26,8 @@ enum class TrackingIssue(val action: IssueAction) {
 }
 
 enum class IssueAction { RequestPermission, OpenAppSettings, OpenLocationSettings }
+
+enum class AddressStatus { Idle, Resolving, Unavailable }
 
 enum class TrackingNotice {
     /** The session was active but no service was running: a force-stop, a reboot, or a refused restart. */
@@ -48,6 +51,7 @@ sealed interface TrackingIntent {
 
     data class MarkerClicked(val pointId: Long) : TrackingIntent
     data object SelectionDismissed : TrackingIntent
+    data object RetryAddressClicked : TrackingIntent
     data object NoticeDismissed : TrackingIntent
 }
 

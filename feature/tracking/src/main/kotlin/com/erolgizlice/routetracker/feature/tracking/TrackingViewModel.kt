@@ -2,6 +2,7 @@ package com.erolgizlice.routetracker.feature.tracking
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.erolgizlice.routetracker.core.route.AddressLookup
 import com.erolgizlice.routetracker.core.route.RouteRepository
 import com.erolgizlice.routetracker.core.tracking.LocationAccess
 import com.erolgizlice.routetracker.core.tracking.TrackingController
@@ -20,11 +21,13 @@ class TrackingViewModel(
     private val routeRepository: RouteRepository,
     private val trackingController: TrackingController,
     private val locationAccess: LocationAccess,
+    private val addressLookup: AddressLookup,
 ) : ViewModel() {
 
     /** State owned by this screen; route and session state come from their own sources. */
     private data class ScreenState(
         val selectedPointId: Long? = null,
+        val addressStatus: AddressStatus = AddressStatus.Idle,
         val hasLocationPermission: Boolean = false,
         val issue: TrackingIssue? = null,
         val isResetConfirmationVisible: Boolean = false,
@@ -42,6 +45,7 @@ class TrackingViewModel(
                 isLoading = false,
                 points = points,
                 selectedPoint = points.firstOrNull { it.id == screen.selectedPointId },
+                addressStatus = screen.addressStatus,
                 isTracking = isTracking,
                 hasLocationPermission = screen.hasLocationPermission,
                 issue = screen.issue,
@@ -86,8 +90,13 @@ class TrackingViewModel(
                 viewModelScope.launch { routeRepository.reset() }
             }
 
-            is TrackingIntent.MarkerClicked -> screen.update { it.copy(selectedPointId = intent.pointId) }
-            TrackingIntent.SelectionDismissed -> screen.update { it.copy(selectedPointId = null) }
+            is TrackingIntent.MarkerClicked -> {
+                screen.update { it.copy(selectedPointId = intent.pointId, addressStatus = AddressStatus.Idle) }
+                resolveAddress(intent.pointId)
+            }
+            TrackingIntent.SelectionDismissed ->
+                screen.update { it.copy(selectedPointId = null, addressStatus = AddressStatus.Idle) }
+            TrackingIntent.RetryAddressClicked -> screen.value.selectedPointId?.let(::resolveAddress)
             TrackingIntent.NoticeDismissed -> screen.update { it.copy(notice = null) }
         }
     }
@@ -135,6 +144,24 @@ class TrackingViewModel(
                 hasLocationPermission = locationAccess.hasAnyLocationPermission(),
                 issue = current.issue.takeUnless { resolved },
             )
+        }
+    }
+
+    /**
+     * The address is normally resolved when the point is recorded. If that failed (offline, rate limited),
+     * a tap tries again. The result is stored and reaches the card through the route flow; the lookup is
+     * not cancelled when the card closes, so the stored address is not lost.
+     */
+    private fun resolveAddress(pointId: Long) {
+        val point = state.value.points.firstOrNull { it.id == pointId } ?: return
+        if (point.address != null) return
+        screen.update { it.copy(addressStatus = AddressStatus.Resolving) }
+        viewModelScope.launch {
+            val address = addressLookup.ensureAddress(point)
+            screen.update { current ->
+                if (current.selectedPointId != pointId) current // the user has moved on to another marker
+                else current.copy(addressStatus = if (address == null) AddressStatus.Unavailable else AddressStatus.Idle)
+            }
         }
     }
 

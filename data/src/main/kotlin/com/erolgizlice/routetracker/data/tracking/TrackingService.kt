@@ -9,6 +9,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import androidx.core.app.ServiceCompat
+import com.erolgizlice.routetracker.core.route.AddressLookup
 import com.erolgizlice.routetracker.core.route.LocationFix
 import com.erolgizlice.routetracker.core.route.RecordFixUseCase
 import com.erolgizlice.routetracker.core.route.RouteRepository
@@ -46,6 +47,7 @@ class TrackingService : Service() {
     private val recordFix: RecordFixUseCase by inject()
     private val routeRepository: RouteRepository by inject()
     private val notifications: TrackingNotifications by inject()
+    private val addressLookup: AddressLookup by inject()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -181,8 +183,12 @@ class TrackingService : Service() {
 
     private suspend fun record(fix: LocationFix) {
         when (val result = recordFix(fix)) {
-            is RecordFixUseCase.Result.Recorded ->
+            is RecordFixUseCase.Result.Recorded -> {
                 Log.i(TAG, "Recorded point ${result.point.id} (accuracy ${fix.accuracyMeters} m)")
+                // Best effort and off the fix channel: recording never waits for the network. A point left
+                // without an address is resolved again when its marker is tapped.
+                scope.launch(Dispatchers.IO) { addressLookup.ensureAddress(result.point) }
+            }
             is RecordFixUseCase.Result.Skipped ->
                 Log.d(TAG, "Skipped fix: ${result.decision} (accuracy ${fix.accuracyMeters} m)")
         }

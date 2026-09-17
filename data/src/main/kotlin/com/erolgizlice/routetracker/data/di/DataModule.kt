@@ -1,11 +1,14 @@
 package com.erolgizlice.routetracker.data.di
 
 import androidx.room.Room
+import com.erolgizlice.routetracker.core.route.AddressLookup
 import com.erolgizlice.routetracker.core.route.DistanceGate
 import com.erolgizlice.routetracker.core.route.RecordFixUseCase
 import com.erolgizlice.routetracker.core.route.RouteRepository
 import com.erolgizlice.routetracker.core.tracking.LocationAccess
 import com.erolgizlice.routetracker.core.tracking.TrackingController
+import com.erolgizlice.routetracker.data.address.GeocoderAddressResolver
+import com.erolgizlice.routetracker.data.address.RoomAddressLookup
 import com.erolgizlice.routetracker.data.route.RoomRouteRepository
 import com.erolgizlice.routetracker.data.route.RouteDatabase
 import com.erolgizlice.routetracker.data.tracking.AndroidLocationAccess
@@ -25,6 +28,9 @@ val dataModule = module {
     single { DistanceGate() }
     // Must stay a single: its lock is what makes read-anchor → evaluate → write atomic.
     single { RecordFixUseCase(get(), get()) }
+
+    single { GeocoderAddressResolver(androidContext()) }
+    single { RoomAddressLookup(get(), get()) } bind AddressLookup::class
 
     single { TrackingSessionStore(androidContext().trackingSessionDataStore) }
     single { AndroidLocationAccess(androidContext()) } bind LocationAccess::class

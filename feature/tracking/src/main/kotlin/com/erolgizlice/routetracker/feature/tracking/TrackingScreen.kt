@@ -11,10 +11,13 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,12 +38,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -131,6 +138,12 @@ internal fun TrackingScreen(
     // Saveable: a rotation must not yank the camera back after the user has panned away.
     var hasCenteredOnRoute by rememberSaveable { mutableStateOf(false) }
     val hasRoute = state.points.isNotEmpty()
+    val resources = LocalContext.current.resources
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val safeDrawing = WindowInsets.safeDrawing.asPaddingValues()
+    // The bottom overlay is measured so the map keeps the Google logo, which must stay visible, above it.
+    var bottomOverlayHeight by remember { mutableStateOf(0.dp) }
 
     // Keyed on route presence, not only on loading: on a fresh install the route is still empty when
     // loading finishes, and the first recorded point must center the camera when it arrives later.
@@ -152,16 +165,22 @@ internal fun TrackingScreen(
             // The my-location layer throws a SecurityException without a location permission.
             properties = MapProperties(isMyLocationEnabled = state.hasLocationPermission),
             uiSettings = MapUiSettings(zoomControlsEnabled = false, myLocationButtonEnabled = state.hasLocationPermission),
-            contentPadding = WindowInsets.safeDrawing.asPaddingValues(),
+            contentPadding = PaddingValues(
+                start = safeDrawing.calculateStartPadding(layoutDirection),
+                top = safeDrawing.calculateTopPadding(),
+                end = safeDrawing.calculateEndPadding(layoutDirection),
+                bottom = maxOf(safeDrawing.calculateBottomPadding(), bottomOverlayHeight),
+            ),
             onMapClick = { onIntent(TrackingIntent.SelectionDismissed) },
         ) {
             if (state.points.size > 1) {
                 Polyline(points = state.points.map { it.latLng }, width = 8f)
             }
-            state.points.forEach { point ->
+            state.points.forEachIndexed { index, point ->
                 key(point.id) {
                     Marker(
                         state = rememberUpdatedMarkerState(position = point.latLng),
+                        contentDescription = resources.getString(R.string.marker_content_description, index + 1),
                         onClick = {
                             onIntent(TrackingIntent.MarkerClicked(point.id))
                             true // consume: details are shown in our own card, not the info window
@@ -193,12 +212,15 @@ internal fun TrackingScreen(
 
         val bottomModifier = Modifier
             .align(Alignment.BottomCenter)
+            .onSizeChanged { size -> bottomOverlayHeight = with(density) { size.height.toDp() } }
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(16.dp)
         val selectedPoint = state.selectedPoint
         if (selectedPoint != null) {
             PointDetailsCard(
                 point = selectedPoint,
+                addressStatus = state.addressStatus,
+                onRetry = { onIntent(TrackingIntent.RetryAddressClicked) },
                 onDismiss = { onIntent(TrackingIntent.SelectionDismissed) },
                 modifier = bottomModifier,
             )
@@ -336,13 +358,25 @@ private fun ResetRouteDialog(markerCount: Int, onConfirm: () -> Unit, onDismiss:
 }
 
 @Composable
-private fun PointDetailsCard(point: RoutePoint, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+private fun PointDetailsCard(
+    point: RoutePoint,
+    addressStatus: AddressStatus,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val isUnavailable = point.address == null && addressStatus == AddressStatus.Unavailable
     Card(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = point.address ?: stringResource(R.string.point_address_unavailable),
+                text = point.address ?: stringResource(
+                    if (isUnavailable) R.string.address_unavailable_title else R.string.address_looking_up,
+                ),
                 style = MaterialTheme.typography.titleMedium,
             )
+            if (isUnavailable) {
+                Text(stringResource(R.string.address_unavailable_body), style = MaterialTheme.typography.bodyMedium)
+            }
             Spacer(Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.point_recorded_at, point.formattedRecordedAt()),
@@ -352,8 +386,9 @@ private fun PointDetailsCard(point: RoutePoint, onDismiss: () -> Unit, modifier:
                 text = String.format(Locale.US, "%.5f, %.5f", point.latitude, point.longitude),
                 style = MaterialTheme.typography.bodySmall,
             )
-            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) {
-                Text(stringResource(R.string.action_close))
+            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                if (isUnavailable) TextButton(onClick = onRetry) { Text(stringResource(R.string.action_retry)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
             }
         }
     }

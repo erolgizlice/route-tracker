@@ -18,6 +18,10 @@ internal interface RouteDao {
     @Insert
     suspend fun insert(point: RoutePointEntity): Long
 
+    /** Returns the number of rows changed: 0 when the point was deleted by a reset in the meantime. */
+    @Query("UPDATE route_points SET address = :address WHERE id = :id")
+    suspend fun updateAddress(id: Long, address: String): Int
+
     @Query("DELETE FROM route_points")
     suspend fun deleteAll()
 }
