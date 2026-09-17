@@ -172,10 +172,15 @@ devices and emulators) → commit. At each milestone, a second, independent Clau
 claims (test counts, mutations, on-device behaviour), and its findings were fixed in follow-up commits.
 Attempts that turned out to be invalid are kept in the verification log of `docs/decisions.md`.
 
-**What the author did:** made the decisions when the assistant asked (module layout, the 100 m edge cases,
-precise-location rule, reset behaviour, what happens to a lost session), provided and supervised the test
-phone, created the Maps API key, and reviewed every commit before pushing. The on-device scenarios were run
-through `adb` by the assistant, on the author's phone and on an emulator.
+**What the author did:** answered the assistant's ten decision questions (module layout, commit attribution
+(`Co-Authored-By`), repository visibility, repository name and location, what the first fix means, the
+accuracy threshold, approximate-only permission, reset while tracking, which emulator to use, and what happens
+to a lost session); provided and supervised the test phone; and created the Maps API key. The brief that
+opened the session, the review messages and the delivery brief were prepared in the separate reviewer session,
+and the author decided what to send ([`docs/ai/prompts.md`](docs/ai/prompts.md)). Until the morning of
+2026-09-17 the assistant also pushed; from then on it only committed, and the author reviewed each commit
+locally and pushed. The on-device scenarios were run through `adb` by the assistant, on the author's phone and
+on an emulator.
 
 **Helper files in the repository:**
 

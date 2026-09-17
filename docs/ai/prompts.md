@@ -5,7 +5,7 @@ original language (Turkish), each with a one-line English summary. Only the auth
 no assistant replies and no tool output. Answers the author gave through the assistant's multiple-choice
 questions are not messages; the resulting decisions are recorded in `docs/decisions.md`.
 
-Content that is not about the code was cut and replaced with `[removed: not about the code]`: other companies and
+Content that is not about the code was cut, and every cut is marked `[removed: …]`, mostly `[removed: not about the code]`: other companies and
 projects, people, the hiring process, local paths, device identifiers and key fragments. Technical content is
 unchanged, including advice that later turned out to be wrong; the corrections are in later messages and in
 the verification log.
@@ -550,6 +550,7 @@ GENEL KURALLAR
 - `docs/ai/README.md`: iş akışını ve her yardımcı dosyanın ne işe yaradığını tek sayfada anlat.
 - `docs/ai/prompts.md`: bu session'a gönderdiğim mesajlar; kronolojik, orijinal dilinde (Türkçe), her birinin başında 1 satırlık İngilizce özet. Kaynak bu session'ın transcript'i ([removed: not about the code]). Sadece benim mesajlarım, tool çıktıları yok.
 - Sanitizasyon: teknik içerik aynen kalır. Şunlar çıkarılır ve yerlerine `[removed: not about the code]` yazılır: başka şirket ve proje adları, kişi adları, işe alım süreci ve görüşme notları, adayla ilgili değerlendirmeler, [removed: not about the code], koçluk etiketleri ve "30 saniyelik cevap" blokları, cihaz seri numarası, yerel dosya yolları, API key parçaları.
+- Bu mesajdaki "7) TARAMA" bloğu docs/ai'ye hiçbir biçimde girmez.
 - Bir kesinti teknik anlamı değiştirecekse kesme, önce bana sor.
 
 6) CLEAN CLONE
@@ -559,5 +560,7 @@ GENEL KURALLAR
 - Build sonrası clone'da `git status --porcelain` boş olmalı (gitignore'da eksik yok demek).
 - Ben push ettikten sonra: `git rev-parse HEAD` ile `git ls-remote origin main` eşit mi, kontrol et. GitHub'da video linklerinin oynayıp oynamadığına bak.
 
-RAPOR: commit listesi; README'deki her sayının kaynağı (D numarası veya bugünkü ölçüm); clean clone log özeti; medya dosya boyutları.
+7) [removed: a scan for sensitive terms; the term list is kept out of the repository]
+
+RAPOR: commit listesi; README'deki her sayının kaynağı (D numarası veya bugünkü ölçüm); tarama sonuçları (üç kapsam ve pozitif kontrol); clean clone log özeti; medya dosya boyutları.
 ````

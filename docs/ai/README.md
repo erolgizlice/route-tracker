@@ -6,13 +6,16 @@ commit carries a `Co-Authored-By: Claude Opus 5` trailer.
 
 ## Workflow
 
-1. **Brief.** The author opened the session with a hand-off brief: the case text, a build stack already
-   verified in a throwaway probe project, a module plan, and lessons from an earlier location-tracking app
-   ([`prompts.md`](prompts.md), message 1).
-2. **Ask before deciding.** When a choice belonged to the author, the assistant asked a multiple-choice question
-   before writing code. Examples: the module layout, what the first fix means, the accuracy threshold,
-   approximate-only permission, reset while tracking, and what happens to a lost session. The answers are
-   recorded as decisions in [`docs/decisions.md`](../decisions.md).
+1. **Brief.** The session opened with a hand-off brief: the case text, a build stack already verified in a
+   throwaway probe project, a module plan, and lessons from an earlier location-tracking app
+   ([`prompts.md`](prompts.md), message 1). The brief was prepared in the separate reviewer session (step 5),
+   and the author decided what to send.
+2. **Ask before deciding.** When a choice belonged to the author, the assistant asked a multiple-choice
+   question before acting. There were ten: module layout, commit attribution (`Co-Authored-By`), repository
+   visibility, repository name and location, what the first fix means, the accuracy threshold, approximate-
+   only permission, reset while tracking, which emulator to use, and what happens to a lost session. The
+   author answered all of them, and the answers are recorded as decisions in
+   [`docs/decisions.md`](../decisions.md).
 3. **Implement in small commits** (Conventional Commits).
 4. **Verify before claiming.** Build and test claims go through the
    [`verify-claim`](../../.claude/skills/verify-claim/SKILL.md) skill: delete old results, run without caches,
@@ -20,11 +23,12 @@ commit carries a `Co-Authored-By: Claude Opus 5` trailer.
    [`device-check`](../../.claude/skills/device-check/SKILL.md) skill. Results, including attempts that turned
    out to be invalid, go to the verification log in `docs/decisions.md`.
 5. **Independent re-measurement.** At each milestone, the reviewer session re-ran the claims itself: test
-   counts, mutations, a scan for sensitive terms, and on-device behaviour. The author pasted its findings into
-   the working session ([`prompts.md`](prompts.md), messages 3–7, 10 and 11), and they were fixed in follow-up
-   commits.
-6. **Human review before publishing.** From 2026-09-17 the assistant committed but did not push; the author
-   reviewed each commit locally and pushed.
+   counts, mutations, a scan for sensitive terms, and on-device behaviour. Its findings reached the working
+   session as the author's messages ([`prompts.md`](prompts.md), messages 3–7, 10 and 11) and were fixed in
+   follow-up commits. Those messages, like the delivery brief (message 12), were prepared in the reviewer
+   session, and the author decided what to send.
+6. **Human review before publishing.** Until the morning of 2026-09-17 the assistant also pushed. From then on
+   it only committed; the author reviewed each commit locally and pushed.
 
 ## What verification caught
 
@@ -58,6 +62,6 @@ Each of these was written or claimed first and corrected after a measurement or 
   (machine-specific permissions).
 - **The raw session transcript.** It contains assistant output, tool output from the author's machine, and
   content that is not about the code. `prompts.md` keeps the author's messages, with that content cut and
-  marked `[removed: not about the code]`.
+  every cut marked `[removed: …]`.
 - **Media from the physical test phone.** Screenshots from a real device show a real location. All media in
   `docs/media/` comes from an emulator on a made-up route.
