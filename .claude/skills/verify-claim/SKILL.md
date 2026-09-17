@@ -12,19 +12,21 @@ verification log in `docs/decisions.md`.
 **Run steps 1–4 in a single Bash call.** In Claude Code every Bash call starts a new shell, so `$START`
 and `$LOG` do not carry over to the next call.
 
-**Scope: JVM unit tests only** (`build/test-results`). Instrumented `connectedAndroidTest` results are
-written somewhere else, and that location has not been verified yet. On the first instrumented run,
-find where the XML lands, extend step 1 and the glob in `junit_summary.py` to cover it, and record it
-in the verification log. Until then, no result from this skill applies to instrumented tests, and
-that includes mutation checks.
+**Scope:** JVM unit test results are written to `<module>/build/test-results/`. Instrumented results are
+written to `<module>/build/outputs/androidTest-results/connected/<variant>/TEST-<device>.xml`, a path measured
+on 2026-09-17 after the script had reported 25 JVM tests and silently ignored 6 instrumented ones. Steps 1
+and 4 cover both locations.
+
+Connected tests run on **every** attached device. Pin one with `ANDROID_SERIAL`:
+`ANDROID_SERIAL=emulator-5554 ./gradlew :data:connectedDebugAndroidTest`.
 
 ## 1. Delete old results
 
 Stale JUnit XML once reported the previous run's failure as the current result.
 
 ```bash
-find . -path '*/build/test-results' -prune -exec rm -rf {} +
-find . -path '*/build/test-results' | wc -l    # must print 0
+find . \( -path '*/build/test-results' -o -path '*/build/outputs/androidTest-results' \) -prune -exec rm -rf {} +
+find . \( -path '*/build/test-results' -o -path '*/build/outputs/androidTest-results' \) | wc -l    # must print 0
 ```
 
 Use `find`, not `rm -rf */build/test-results`. In zsh an unmatched glob aborts the whole command:

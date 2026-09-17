@@ -28,10 +28,11 @@ def main() -> int:
         return 2
     root = sys.argv[2] if len(sys.argv) > 2 else "."
 
-    # JVM unit tests only. Instrumented test results are written elsewhere (see SKILL.md, Scope).
-    files = sorted(glob.glob(os.path.join(root, "**/build/test-results/**/TEST-*.xml"), recursive=True))
+    # JVM unit tests and connected instrumented tests write to different places (see SKILL.md, Scope).
+    patterns = ("**/build/test-results/**/TEST-*.xml", "**/build/outputs/androidTest-results/**/TEST-*.xml")
+    files = sorted({path for pattern in patterns for path in glob.glob(os.path.join(root, pattern), recursive=True)})
     if not files:
-        print("NO RESULT FILES under build/test-results: the tests did not run, or wrote their results elsewhere")
+        print("NO RESULT FILES: the tests did not run, or wrote their results somewhere not covered here")
         return 1
 
     totals = dict.fromkeys(COUNTS, 0)
@@ -44,7 +45,7 @@ def main() -> int:
         for key in COUNTS:
             totals[key] += counts[key]
         label = "fresh" if fresh else "STALE"
-        print(f"{label}  {suite.get('name')}: " + " ".join(f"{k}={v}" for k, v in counts.items()))
+        print(f"{label}  {suite.get('name') or os.path.basename(path)}: " + " ".join(f"{k}={v}" for k, v in counts.items()))
         for case in suite.iter("testcase"):
             if case.find("failure") is not None or case.find("error") is not None:
                 print(f"       FAILED: {case.get('name')}")
