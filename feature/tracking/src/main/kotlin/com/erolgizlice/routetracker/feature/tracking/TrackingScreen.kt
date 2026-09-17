@@ -268,13 +268,26 @@ private fun RouteMap(
         onMapClick = { onIntent(TrackingIntent.SelectionDismissed) },
         onMapLoaded = { isMapLoaded = true },
     ) {
+        // Inside the map's content, where the Maps SDK has already started: see rememberRouteMarkerIcons.
+        val icons = rememberRouteMarkerIcons()
         if (points.size > 1) {
             Polyline(points = points.map { it.latLng }, width = 8f)
         }
         points.forEachIndexed { index, point ->
             key(point.id) {
+                val icon = icons.getValue(
+                    routeMarkerStyle(
+                        index = index,
+                        pointCount = points.size,
+                        pointId = point.id,
+                        selectedPointId = state.selectedPoint?.id,
+                    ),
+                )
                 Marker(
                     state = rememberUpdatedMarkerState(position = point.latLng),
+                    icon = icon.descriptor,
+                    anchor = icon.anchor,
+                    zIndex = icon.zIndex,
                     contentDescription = resources.getString(R.string.marker_content_description, index + 1),
                     onClick = {
                         onIntent(TrackingIntent.MarkerClicked(point.id))
