@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -57,6 +58,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -96,8 +98,13 @@ private const val RouteZoom = 16f
  */
 private const val MapPlaceholderTimeoutMillis = 3_000L
 
-/** The bottom card lets the map through, because it now covers part of it (D25). */
+// The bottom card and the scrim behind the navigation bar, in one place so they cannot drift apart. The
+// proportions - 0.8 at the bottom edge, half of that in the middle, and 32 dp above the inset - are the
+// ones that sat right in the author's own app (D25).
 private const val CardAlpha = 0.85f
+private const val ScrimBottomAlpha = 0.8f
+private const val ScrimMiddleAlpha = ScrimBottomAlpha / 2f
+private val ScrimHeightAboveInset = 32.dp
 
 @Composable
 fun TrackingRoute(
@@ -174,6 +181,25 @@ internal fun TrackingScreen(
             )
         }
 
+        // Decorative, and drawn between the map and the card: it keeps the navigation bar legible where the
+        // map runs underneath it. In the app's own background colour, so it lightens rather than darkens.
+        val background = MaterialTheme.colorScheme.background
+        val navigationBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(navigationBarPadding + ScrimHeightAboveInset)
+                .clearAndSetSemantics {}
+                .background(
+                    Brush.verticalGradient(
+                        0f to background.copy(alpha = 0f),
+                        0.5f to background.copy(alpha = ScrimMiddleAlpha),
+                        1f to background.copy(alpha = ScrimBottomAlpha),
+                    ),
+                ),
+        )
+
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
@@ -206,20 +232,13 @@ internal fun TrackingScreen(
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
                 .fillMaxWidth(),
         ) {
-            // A short fade, so the map does not meet the translucent card at a hard edge.
-            Spacer(
-                Modifier
-                    .fillMaxWidth()
-                    .height(24.dp)
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, cardColor))),
-            )
             val cardModifier = Modifier.padding(horizontal = 16.dp)
             if (selectedPoint != null) {
                 PointDetailsCard(
                     point = selectedPoint,
                     addressStatus = state.addressStatus,
                     containerColor = cardColor,
-                    bottomPadding = safeDrawing.calculateBottomPadding(),
+                    bottomPadding = navigationBarPadding,
                     onRetry = { onIntent(TrackingIntent.RetryAddressClicked) },
                     onDismiss = { onIntent(TrackingIntent.SelectionDismissed) },
                     modifier = cardModifier,
@@ -229,7 +248,7 @@ internal fun TrackingScreen(
                     state = state,
                     onIntent = onIntent,
                     containerColor = cardColor,
-                    bottomPadding = safeDrawing.calculateBottomPadding(),
+                    bottomPadding = navigationBarPadding,
                     modifier = cardModifier,
                 )
             }

@@ -438,11 +438,21 @@ says how it was verified:
 ### D25. The map runs to the bottom edge, behind a translucent card
 
 - **Decision:** the bottom overlay reaches the bottom edge of the screen, so the map is not cut off by a
-  strip above the navigation bar. Three parts: `window.isNavigationBarContrastEnforced = false`, so the
-  system stops painting a scrim behind the bar; the overlay takes only the horizontal and top insets, and
-  the card pads its **own content** by the navigation bar inset, which keeps the buttons above the gesture
-  bar or the three buttons; and the card's background is the surface colour at 85 % with a 24 dp fade above
-  it, so the map meets it softly instead of at a hard edge.
+  strip above the navigation bar. Four parts:
+  1. `enableEdgeToEdge` with a transparent style for both bars, and, on API 29 and above,
+     `window.isNavigationBarContrastEnforced = false`, so the system stops painting its own scrim behind
+     the navigation bar. `minSdk` is 26, so the flag is behind a version check.
+  2. The app draws that scrim itself, **between the map and the card**: a box as tall as the navigation
+     bar inset plus 32 dp, filled with a vertical gradient of the theme's `background` colour at alpha
+     0, then 0.4, then 0.8 at the bottom edge. It is in the app's own colour, so it lightens the map
+     rather than darkening it, and it never darkens the card, which sits on top of it. The three
+     numbers - 0.8 at the edge, half of it in the middle, 32 dp above the inset - are the proportions
+     that sat right in the author's own app, and they live next to the card's alpha in one place so the
+     two cannot drift apart.
+  3. The scrim is decorative: `clearAndSetSemantics {}` leaves it out of what a screen reader traverses.
+  4. The overlay takes only the horizontal and top insets, and the card pads its **own content** by the
+     navigation bar inset, which keeps the buttons above the gesture bar or the three buttons. The card's
+     background is the surface colour at 85 %, so the map shows through it.
 - **Rejected: a real blur behind the card.** The map renders into its own surface, which a Compose
   `Modifier.blur` cannot sample - it would blur an empty composable. The only way to get a blurred map
   would be to blur the whole map view, which would blur the route and the markers with it.
@@ -460,15 +470,23 @@ says how it was verified:
     against the card's background. Where a dark map label shows through the translucent card, the darkest
     background found is RGB (202, 196, 208), which is 10.0 : 1 against `onSurface` #1D1B20 - above the
     4.5 : 1 target with room to spare.
-  - **The Google logo stays above the card:** its lowest pixel is y=1820 on the S23 and y=1828 on the
-    emulator, while the card starts at about y=2023 and y=2064. The map's bottom `contentPadding` is still
-    measured from the overlay's height, so the logo moves with it.
-  - **Tap targets:** on the S23, Start reacted to five of five taps and Reset opened its dialog five times
-    of five, with the buttons ending at y=2131 and the bar's inset starting 167 px below them. On the
-    emulator, Start, Stop and Reset each answered five of five. Stop was not tapped on the phone: tracking
-    there would record the tester's real location.
-  - Rotation to landscape, the keyless build (the "Map unavailable" card and the route count are still
-    there, no crash) and the placeholder path were re-checked after the change.
+  - **The Google logo stays visible above the card and the scrim:** its lowest pixel is y=1884 on the S23
+    and y=1894 on the emulator, while the card starts at about y=2023 and y=2064 and the scrim only covers
+    the last 154 px. The map's bottom `contentPadding` is measured from the card's height, which is the
+    taller of the two, so no extra padding was needed for the scrim. The Maps SDK has no slot for moving
+    the logo; `contentPadding` is the only lever, and it also shrinks the area the camera can use.
+  - **Tap targets, with the scrim in place:** on the S23, Start reacted to five of five taps and Reset
+    opened its dialog five of five times, with the buttons ending at y=2131 and the bar's inset starting
+    167 px below them. On the emulator, Start, Stop and Reset each answered five of five. Stop was not
+    tapped on the phone: tracking there would record the tester's real location.
+  - **The scrim is not in a screen reader's path:** `uiautomator` still lists a node at [0,2186][1080,2340],
+    but with no text, no content description, not focusable and not clickable, so the six nodes it does
+    traverse are the map, the my-location button, the two text lines and the two buttons.
+  - The screen is not locked to one orientation. In landscape the card spans the width, the buttons sit at
+    y=877-932 of 1080 and the gesture bar draws over the scrim.
+  - The keyless build (the "Map unavailable" card and the route count are still there, no crash) and the
+    placeholder path were re-checked after the change: the card is drawn over the placeholder from the
+    first frame, with the count showing 0 until the route is read.
 
 ---
 
@@ -530,3 +548,4 @@ says how it was verified:
 | 2026-09-17 | Clean clone without a key | A clone of `polish/markers-startup` at 56979c8 with only `sdk.dir` in `local.properties`: BUILD SUCCESSFUL, 107 of 107 tasks executed, `HAS_MAPS_API_KEY = false`, 32 JVM tests passed, and `git status --porcelain` empty. `docs/media` is absent from the clone, because the media is not committed yet |
 | 2026-09-17 | The marker count while the route is read | Measured frame by frame in clip 2 rather than estimated: the crop of the count line matches "0 markers" from 21.75 s to 22.30 s and "7 markers" from 22.30 s, so the wrong count is on screen for 0.55 s, after 0.65 s of launch screen. A review estimate of about 2 s covered the whole reopen, from the tap to the route on screen (D24) |
 | 2026-09-18 | Edge-to-edge bottom card | Before: emulator rows y=2240-2339 varied across the width (deviation 11-21), so the map already ran behind the gesture bar; the S23's same rows were a flat RGB (252, 253, 252) contrast scrim (deviation 1-9). After turning the scrim off and extending the overlay: both devices show map pixels there. Contrast 19.2 : 1 on the card's text and 10.0 : 1 at the darkest point where the map shows through; the Google logo's lowest pixel stays about 200 px above the card; Start and Reset 5 / 5 on the S23, Start, Stop and Reset 5 / 5 each on the emulator; rotation, the keyless build and the placeholder path unchanged (D25) |
+| 2026-09-18 | The app draws the navigation-bar scrim itself | Replaced the 24 dp fade above the card with a scrim between the map and the card: as tall as the navigation bar inset plus 32 dp, the theme's background colour at alpha 0 / 0.4 / 0.8 downwards, `clearAndSetSemantics {}`. Re-measured after the change: Google logo's lowest pixel y=1884 (S23) and y=1894 (emulator) against a card starting at y=2023 / y=2064 and a 154 px scrim; card text contrast 19.0-19.2 : 1 and 10.0 : 1 where the map shows through; Start, Stop and Reset 5 / 5 each on the emulator and Start and Reset 5 / 5 on the S23; the scrim's node carries no text, description, focus or click; landscape and the keyless build unchanged; 38 / 38 tests from fresh XML (D25) |

@@ -163,9 +163,10 @@ belongs to:
 | Red pin | the newest point | Where the user is now, and the only marker that moves |
 | Larger blue pin | the point whose address card is open | The map and the card agree on what is selected |
 
-The map runs all the way to the bottom edge behind a translucent control card, with the system's
-navigation-bar scrim turned off; the card pads its own content by the navigation bar inset, so its buttons
-stay above the bar and the Google attribution stays above the card (D25).
+The map runs all the way to the bottom edge: the system's navigation-bar scrim is off, the app draws its
+own in the theme's background colour between the map and a translucent control card, and the card pads its
+own content by the navigation bar inset, so its buttons stay above the bar and the Google attribution stays
+above the card (D25).
 
 Each look is **one bitmap**, drawn once with a `DrawScope` and shared by every marker that uses it, so a
 route of a thousand points holds four bitmaps. The pins are anchored at their tip and carry transparent
