@@ -4,8 +4,15 @@ import androidx.room.Room
 import com.erolgizlice.routetracker.core.route.DistanceGate
 import com.erolgizlice.routetracker.core.route.RecordFixUseCase
 import com.erolgizlice.routetracker.core.route.RouteRepository
+import com.erolgizlice.routetracker.core.tracking.LocationAccess
+import com.erolgizlice.routetracker.core.tracking.TrackingController
 import com.erolgizlice.routetracker.data.route.RoomRouteRepository
 import com.erolgizlice.routetracker.data.route.RouteDatabase
+import com.erolgizlice.routetracker.data.tracking.AndroidLocationAccess
+import com.erolgizlice.routetracker.data.tracking.ServiceTrackingController
+import com.erolgizlice.routetracker.data.tracking.TrackingNotifications
+import com.erolgizlice.routetracker.data.tracking.TrackingSessionStore
+import com.erolgizlice.routetracker.data.tracking.trackingSessionDataStore
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -18,4 +25,9 @@ val dataModule = module {
     single { DistanceGate() }
     // Must stay a single: its lock is what makes read-anchor → evaluate → write atomic.
     single { RecordFixUseCase(get(), get()) }
+
+    single { TrackingSessionStore(androidContext().trackingSessionDataStore) }
+    single { AndroidLocationAccess(androidContext()) } bind LocationAccess::class
+    single { TrackingNotifications(androidContext()) }
+    single { ServiceTrackingController(androidContext(), get()) } bind TrackingController::class
 }

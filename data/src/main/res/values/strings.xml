@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tracking_channel_name">Route tracking</string>
+    <string name="tracking_alerts_channel_name">Tracking status</string>
+    <string name="tracking_notification_title">Tracking your route</string>
+    <plurals name="tracking_notification_markers">
+        <item quantity="one">%d marker · a new one every 100 m</item>
+        <item quantity="other">%d markers · a new one every 100 m</item>
+    </plurals>
+    <string name="tracking_notification_stop">Stop</string>
+    <string name="tracking_stopped_title">Tracking stopped</string>
+    <string name="tracking_stopped_body">Android closed the app, so tracking ended. Your route is saved; open the app to start again.</string>
+</resources>
