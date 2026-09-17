@@ -9,6 +9,9 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.ReportDrawnWhen
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -74,11 +78,19 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import kotlinx.coroutines.delay
 import java.util.Locale
 
 private val DefaultCameraTarget = LatLng(41.0082, 28.9784) // Istanbul, until a route exists
 private const val DefaultZoom = 11f
 private const val RouteZoom = 16f
+
+/**
+ * How long the placeholder may cover the map. A cap, not the normal path: offline with an empty tile
+ * cache the map never reports itself loaded and draws nothing at all, so the placeholder would cover an
+ * empty screen, and the Google logo, for good (D24).
+ */
+private const val MapPlaceholderTimeoutMillis = 3_000L
 
 @Composable
 fun TrackingRoute(
@@ -226,6 +238,11 @@ private fun RouteMap(
     // camera opened on is already centered.
     var hasCenteredOnRoute by rememberSaveable { mutableStateOf(points.isNotEmpty()) }
     var isMapLoaded by remember { mutableStateOf(false) }
+    var placeholderTimedOut by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(MapPlaceholderTimeoutMillis)
+        placeholderTimedOut = true
+    }
     // What "started" means for this screen: the route is on screen and the map has finished rendering.
     // Without this, `am start -W` and startup profilers stop at the first frame, which is an empty map.
     ReportDrawnWhen { isMapLoaded }
@@ -266,6 +283,22 @@ private fun RouteMap(
                 )
             }
         }
+    }
+
+    // An unloaded map draws an empty grid, which reads as broken, where the app's own background reads
+    // as opening. This changes what the wait looks like, not how long it is.
+    val placeholderAlpha by animateFloatAsState(
+        targetValue = if (isMapLoaded || placeholderTimedOut) 0f else 1f,
+        animationSpec = tween(durationMillis = 220),
+        label = "map placeholder",
+    )
+    if (placeholderAlpha > 0f) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = placeholderAlpha }
+                .background(MaterialTheme.colorScheme.background),
+        )
     }
 }
 
