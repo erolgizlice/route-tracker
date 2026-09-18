@@ -6,16 +6,30 @@ marker. This is what that costs, measured, and what the measurement does not say
 The markers themselves are described in [D23](../decisions.md#d23-route-markers-are-four-bitmaps-shared-by-every-marker):
 each of the four looks is one bitmap, drawn once and shared by every marker that uses it.
 
-- **Video:** [`docs/media/clip3-stress.mp4`](../media/clip3-stress.mp4) - 1000 markers on a Galaxy S23,
-  panned and zoomed for 11 s. Recorded with location permission revoked, so there is no my-location dot
-  and no real position on screen; the route is a made-up one written straight into the database.
+- **Video:** [`docs/media/clip3-stress.mp4`](../media/clip3-stress.mp4) - 15 s on a Galaxy S23, starting
+  with a cold start: the app opens with a thousand markers already stored, and is then panned and zoomed.
+  Recorded with the location permission revoked, so there is no my-location dot and no real position on
+  screen; the route is a made-up one written into the database by the `demo` build (D26). The numbers in
+  the tables below come from that same run.
 
 ## Method
 
 ### Putting a thousand points in the database
 
-The app has no code for this, not even behind a debug flag. The database file is built on the host and
-copied into the app's data directory, which needs a debuggable build and nothing else:
+Two ways, because a release build is not debuggable. **The `demo` build type** (D26) carries a receiver
+that writes the points itself, which is how the recorded run and the two phone rows below were seeded:
+
+```bash
+PKG=com.erolgizlice.routetracker
+$ADB -s $S shell am broadcast -n $PKG/com.erolgizlice.routetracker.demo.MockLocationReceiver \
+  --es cmd seed --ei count 1000 --ed spacing 20
+```
+
+It logs `seeded 1000 points, 20.0 m apart` and takes about 14 s. Nothing in `release` or `debug` can do
+this; the dex of each APK was scanned to prove it (D26).
+
+**For a debuggable build** - the debug and benchmark rows below - the database file is built on the host
+and copied into the app's data directory with `run-as`:
 
 ```bash
 PKG=com.erolgizlice.routetracker
@@ -66,8 +80,9 @@ Verified from the app, not from the file: the control bar says "1000 markers" af
 whole spiral fits on one screen, and **all thousand markers are drawn at once** - denser than the 100 m
 rule can ever produce, which is the point.
 
-To run the same measurement on a release-like build, install the debug build, seed it, then
-`install -r` the benchmark build: the data survives because both are signed with the debug key.
+To get a debug-seeded route into the benchmark build, install the debug build, seed it, then `install -r`
+the benchmark build: the data survives because both are signed with the debug key. That trick does not
+work for `release` or `demo`, which are signed with a different certificate - hence the receiver.
 
 ### The gestures and the frame statistics
 
@@ -92,17 +107,18 @@ Ten seconds of panning and zooming with 1000 markers on screen:
 | Galaxy S23 (Android 16) | debug | four bitmaps | 582 | 1 (0.17 %) | 5 ms | 5 ms | 6 ms | - |
 | Galaxy S23 (Android 16) | benchmark | default pin | 594 | 0 (0.00 %) | 5 ms | 5 ms | 6 ms | 4 ms |
 | Galaxy S23 (Android 16) | benchmark | four bitmaps | 568 | 0 (0.00 %) | 5 ms | 5 ms | 5 ms | 3 ms |
+| Galaxy S23 (Android 16) | demo (= release) | four bitmaps, **the recorded clip** | 497 | 0 (0.00 %) | 5 ms | 5 ms | 5 ms | 3 ms |
 | API 36 emulator | debug | default pin | 107 | 94 (87.9 %) | 16 ms | 65 ms | 81 ms | - |
 | API 36 emulator | debug | four bitmaps | 106 | 91 (85.9 %) | 16 ms | 65 ms | 77 ms | - |
 
-The benchmark row for the four bitmaps is the run that was recorded as the video. Its output, verbatim,
-with the pid replaced and the all-zero tail of each histogram cut:
+The demo row is the run that was recorded as the video. Its output, verbatim, with the pid replaced and
+the all-zero tail of each histogram cut:
 
 ```
 ** Graphics info for pid <pid> [com.erolgizlice.routetracker] **
 
-Stats since: 123218910765025ns
-Total frames rendered: 568
+Stats since: 165001782519972ns
+Total frames rendered: 497
 Janky frames: 0 (0.00%)
 Janky frames (legacy): 0 (0.00%)
 50th percentile: 5ms
@@ -116,12 +132,12 @@ Number Slow bitmap uploads: 0
 Number Slow issue draw commands: 0
 Number Frame deadline missed: 0
 Number Frame deadline missed (legacy): 0
-HISTOGRAM: 5ms=567 6ms=1 7ms=0 8ms=0 ... (every remaining bucket 0)
-50th gpu percentile: 1ms
+HISTOGRAM: 5ms=495 6ms=1 7ms=1 8ms=0 ... (every remaining bucket 0)
+50th gpu percentile: 2ms
 90th gpu percentile: 2ms
 95th gpu percentile: 2ms
 99th gpu percentile: 3ms
-GPU HISTOGRAM: 1ms=323 2ms=230 3ms=14 4ms=0 5ms=1 6ms=0 ... (every remaining bucket 0)
+GPU HISTOGRAM: 1ms=167 2ms=313 3ms=14 4ms=2 5ms=1 6ms=0 ... (every remaining bucket 0)
 
 Pipeline=Skia (OpenGL)
 ```
@@ -131,12 +147,18 @@ Pipeline=Skia (OpenGL)
 `am start -W` for the first frame, `reportFullyDrawn` for the route and the map on screen, medians of
 three cold starts, debug builds:
 
-| Device | Markers | First frame | Fully drawn |
-|---|---|---|---|
-| Galaxy S23 | default pin, before the startup work | 860 ms | 3370 ms |
-| Galaxy S23 | four bitmaps, after it | 549 ms | 3250 ms |
-| API 36 emulator | default pin, before | 2217 ms | 8303 ms |
-| API 36 emulator | four bitmaps, after | 1635 ms | 8036 ms |
+| Device | Build | Markers | First frame | Fully drawn |
+|---|---|---|---|---|
+| Galaxy S23 | demo (= release) | four bitmaps, **the recorded run** | 135 ms | 731 ms |
+| Galaxy S23 | debug | default pin, before the startup work | 860 ms | 3370 ms |
+| Galaxy S23 | debug | four bitmaps, after it | 549 ms | 3250 ms |
+| API 36 emulator | debug | default pin, before | 2217 ms | 8303 ms |
+| API 36 emulator | debug | four bitmaps, after | 1635 ms | 8036 ms |
+
+The first row is what the video shows: three cold starts measured in the same session as the recording,
+medians of 135 ms to the first frame and 731 ms to a thousand markers on screen. The debug rows below it
+are the pessimistic case and the only ones that exist for "before", because the startup comparison was
+made before there was a release-like build to compare in.
 
 With a seven-point route the same builds are 850 / 2285 ms and 559 / 2237 ms on the S23, so a thousand
 points cost about a second of the time to "fully drawn" in a debug build - reading them from Room and

@@ -21,8 +21,10 @@ feed the fused location provider with mock fixes and seed a route (D26). The rou
   screen there, and that tracking continued is only visible on the way back. The unedited take is in the
   repository as well: [clip1-tracking.mp4](docs/media/clip1-tracking.mp4) (95 s, real time throughout).
 - [Clip 2: the address of a tapped marker, stop, the app killed and reopened with the route kept, reset](docs/media/clip2-address-stop-reset.mp4) (33 s)
-- [Clip 3: a thousand markers, panned and zoomed](docs/media/clip3-stress.mp4) (11 s). Recorded with the
-  location permission revoked, so no real position can be on screen; the numbers behind it are in
+- [Clip 3: a thousand markers, from a cold start, panned and zoomed](docs/media/clip3-stress.mp4) (15 s).
+  It starts with the app being opened, so the wait for a thousand stored markers is on screen: 135 ms to
+  the first frame and 731 ms until they are all drawn, measured in the same session. Recorded with the
+  location permission revoked, so no real position can be on screen; the rest of the numbers are in
   [`docs/stress/README.md`](docs/stress/README.md).
 
 While the app is in the background in clip 1, a calculator is in front: the phone's home screen, its
