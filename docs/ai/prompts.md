@@ -1027,3 +1027,38 @@ ON BEŞİNCİ REVIEW. İki düzeltme doğru, biri yarım kaldı.
 
 3. Sonra verify-claim ile testleri taze koştur, taramayı tekrarla, bana raporla ve DUR. Merge ve push kullanıcıda.
 ````
+
+---
+
+## 32. 2026-09-18 09:53 UTC
+
+**Summary:** Architecture: pull the screen's state transitions out into a pure reducer with JVM tests and a mutation, or say honestly in the documents that there is none; behaviour unchanged, and D21 is to record where the address policy lives and what leaving it there costs.
+
+````text
+MİMARİ: SAF REDUCER + DOKÜMAN DÜZELTMESİ. Kesme noktası 14:15. Görsel hiçbir şey değişmeyecek, kayıtlar yeniden çekilmeyecek. Davranış birebir korunacak.
+
+Tespit: sözleşme MVI (tek state, tek onIntent, ayrı effect kanalı) ama reducer yok. Geçişler when bloğunun içinde screen.update { copy(...) } olarak yan etkilerle iç içe. Ayrıca izin merdiveninin kararı (Denied/Blocked, D18'deki Android 16 inceliği) ViewModel'de ve JVM testi yok.
+
+1. ScreenState'in SAF geçişlerini ayır:
+   internal fun ScreenState.reduce(intent: TrackingIntent, location: LocationSnapshot): ScreenState
+   LocationSnapshot(hasPrecise, hasAny, isEnabled) ViewModel'de okunur ve parametre olarak verilir; reducer saf kalır, Android'e dokunmaz, :feature:tracking'in test kaynak kümesinden çağrılabilir.
+   Yan etkiler (trackingController.start/stop, routeRepository.reset, resolveAddress, sendEffect) ViewModel'de kalır ve reducer'dan SONRA çalışır. Sealed bir Command tipi zorunlu değil; sadelik önce gelir.
+   DAVRANIŞ DEĞİŞMEYECEK. D18 mantığı aynen taşınacak: rationale'ın false olması tek başına "blocked" demek değil, yalnızca yükseltme zaten istenmişse blocked. Testler bir fark ortaya çıkarırsa eski davranış kazanır.
+
+2. Testler (:feature:tracking, JVM): Start'ta precise varsa issue temizlenir; precise yokken izin akışı; approximate verilince PreciseLocationDenied; yükseltme zaten istenmişken canAskAgain=false ise PreciseLocationBlocked; konum kapalıyken LocationDisabled; ScreenResumed çözülmüş issue'yu temizler; Reset onayı ve iptali; marker seçimi ve SelectionDismissed. Sonra mutasyon: blocked/denied ayrımını ters çevir, TAM olarak ilgili testlerin kırıldığını göster, geri yükle, md5 eşit olsun.
+
+3. Dokümanlar, testler yeşil olduktan SONRA:
+   - D7: tek state, tek intent kapısı, effect kanalı VE saf reducer. Elenen alternatif: geçişleri ViewModel'e serpmek. Evidence artık Measured (testler + mutasyon).
+   - README'deki MVI paragrafına reducer cümlesi; CLAUDE.md'deki "MVI TrackingViewModel" ifadesini mekanizmayla eşle; CLAUDE.md invariant'larına: state geçişleri reducer'da, yan etkiler ViewModel'de.
+   - prompts.md'ye bu mesajı ekle (32. mesaj), docs/ai/README'deki numaraları güncelle, her mesajın orijinalden yalnızca [removed] işaretlerinde ayrıldığını programatik doğrula.
+   - docs/ai/README'de 120 karakteri aşan satırı da sar.
+
+4. 14:15'e kadar testler yeşil değilse DUR, bana söyle ve hiçbir şeyi zorlamadan branch'i geri al:
+   git reset --hard eee740e
+   O durumda yalnızca dokümanı düzelteceğiz: "tek state + tek intent kapısı + effect kanalı; ayrı bir reducer yok, geçişler ViewModel'de" diye dürüstçe yazacağız.
+
+Testler taze (verify-claim), tarama tekrar. Commit et, push etme.
+
+EK MADDE (kod değişikliği değil, yalnızca D21'e üç cümle):
+AddressLookup'ın politikası (kayıtlı adres varsa onu döndür, yoksa çöz, yalnızca UPDATE ile yaz, çözülemezse null) :data'daki RoomAddressLookup'ta duruyor. Bunu D21'de açıkça bir karar olarak yaz: bu aslında bir use case, :core'a EnsureAddress(repository, resolver) olarak alınabilirdi ve o zaman JVM'de test edilirdi; :data'da bırakıldı çünkü tek bağımlılığı DAO ve geocoder, ve UPDATE-only kısıtı (D14) zaten DAO'nun yanında duruyor. Elenen alternatifi ve bedelini (JVM testi yerine cihaz ölçümü) yaz. Kodu DEĞİŞTİRME.
+````
