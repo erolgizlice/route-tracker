@@ -88,7 +88,9 @@ ANDROID_SERIAL=emulator-5554 ./gradlew :data:connectedDebugAndroidTest   # Room 
   every fix the app receives comes from the `demo` build's own mock source, and which one it was is checked
   against the recorded coordinates; the app's data is cleared with `pm clear`, so no earlier real points
   remain; the route on screen is made-up and seeded; every frame is read in a contact sheet before anything
-  is committed, and a screenshot committed as a crop is read in the form it is committed in; and the device
+  is committed - **the first and last seconds too**, which are whatever was in front when the recorder
+  started and stopped - and anything committed as a crop, a cut or a GIF is read in the form it is
+  committed in; and the device
   is restored afterwards with the restore verified (mock sources removed, appops back to default, Do Not
   Disturb off, settings back). **Logs from a physical device are never committed.** Everything in
   `docs/media/` was recorded on the phone under those conditions; the emulator is used for the instrumented

@@ -23,9 +23,12 @@ Record every result in the verification log of `docs/decisions.md`.
   2. the app's data is cleared (`pm clear`), so points recorded at real places are gone;
   3. the route on screen is made-up and seeded into the database (see `docs/stress/README.md`);
   4. every frame is read in a contact sheet (`ffmpeg -vf "fps=1,tile=8x2"`) and checked for real
-     addresses, account names and anything identifying in the status bar, before anything is committed. A
-     screenshot that is committed as a crop is read in the form it is committed in: the crop is what
-     ships, so the crop is what gets scanned;
+     addresses, account names and anything identifying in the status bar, before anything is committed.
+     **Start at the first frame and finish at the last one:** a take begins and ends with whatever app was
+     in front when the recorder started and stopped, and 1 frame per second over a 95 s clip is easy to
+     skim past. That is how two seconds of the Clock app, with the tester's own alarms, reached the
+     repository (verification log, 2026-09-18). What is committed as a crop, a cut or a GIF is read in the
+     form it is committed in: that is what ships, so that is what gets scanned;
   5. the device is restored right afterwards and the restore is verified one item at a time: mock sources
      removed, `appops android:mock_location` back to `default`, Do Not Disturb off, screen timeout back to
      its old value, app data cleared.
@@ -128,6 +131,9 @@ GPX route playback (Extended Controls → Location → Routes) is **unverified**
 
 Each point below cost a failed take (verification log, "Demo recording" and "Demo re-recorded").
 
+- **Put a neutral app in front before the recorder starts, not after.** The take opens on whatever is on
+  screen at that moment: `am start` the calculator, wait for it, and only then start `screenrecord`. The
+  clip 1 takes launched the app first and so opened on the phone's Clock app.
 - **Record on the host, not in the guest.** `adb shell screenrecord` writes a frame only when the screen changes
   and loads the emulator while it encodes, which made the clips stutter and jump. Use
   `adb -s $E emu screenrecord start --fps 30 /abs/path/take.webm`, then `adb -s $E emu screenrecord stop`. It ignores

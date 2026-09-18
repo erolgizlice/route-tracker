@@ -74,8 +74,9 @@ Each of these was written or claimed first and corrected after a measurement or 
 - **Unguarded media from the physical test phone,** and any log from it. A recording or a screenshot from
   the phone is committed only when no real location can reach the screen - the permission is revoked, or
   every fix comes from the `demo` build's mock source, checked against the recorded coordinates - the app's
-  data has been cleared with `pm clear`, the route on screen is made-up and seeded, every frame, and every
-  crop in the form it is committed in, has been read in a contact sheet, and the device has been restored
+  data has been cleared with `pm clear`, the route on screen is made-up and seeded, every frame - the first
+  and last ones included - and every crop, cut or GIF in the form it is committed in, has been read in a
+  contact sheet, and the device has been restored
   afterwards with the restore verified. Everything in `docs/media/` was recorded that way; the emulator is
   used for the instrumented tests, not for media. The same rule is in [`CLAUDE.md`](../../CLAUDE.md) and in
   the [`device-check`](../../.claude/skills/device-check/SKILL.md) skill.
