@@ -92,7 +92,7 @@ explanation instead of a blank map (D5):
 
 ```bash
 ./gradlew assembleDebug
-./gradlew :core:test :feature:tracking:testDebugUnitTest               # 32 JVM tests: the 100 m rule, marker styles
+./gradlew :core:test :feature:tracking:testDebugUnitTest   # 50 JVM tests: the 100 m rule and the screen's transitions
 ANDROID_SERIAL=<device-serial> ./gradlew :data:connectedDebugAndroidTest   # 6 instrumented tests: Room SQL
 adb -s <device-serial> install -r app/build/outputs/apk/debug/app-debug.apk
 
@@ -100,7 +100,8 @@ adb -s <device-serial> install -r app/build/outputs/apk/debug/app-debug.apk
 ./gradlew assembleRelease          # unsigned unless the signing properties are set (see below)
 ```
 
-On 2026-09-17 all 38 tests passed from freshly generated results (32 JVM, 6 on an API 36 emulator).
+On 2026-09-18 all 56 tests passed from freshly generated results: 50 on the JVM - 25 in `:core` and 25 in
+`:feature:tracking` - and the 6 instrumented ones, run on a Galaxy S23.
 Connected tests run on every attached device unless `ANDROID_SERIAL` names one. To move an emulator, use
 `adb emu geo fix <longitude> <latitude>` (longitude first).
 
