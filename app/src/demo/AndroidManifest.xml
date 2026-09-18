@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Demo build type only: a way to push mock locations into the fused provider, so a demo can be recorded without
-     walking a real route. Never part of a release build. -->
+<!-- Demo build type only. A way to push mock locations into the fused provider and to seed a route, so the
+     demo can be recorded without walking a real one. Never part of a release or a debug build.
+
+     The receiver is exported and carries no permission because `adb shell am broadcast` has to reach it,
+     and an unexported receiver cannot be reached from the shell. That is acceptable here and only here:
+     this manifest is merged into the `demo` variant alone, which is never shipped. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
         <receiver

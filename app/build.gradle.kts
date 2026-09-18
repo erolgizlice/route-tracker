@@ -101,7 +101,8 @@ dependencies {
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)
 
-    // Demo only: the mock-location hook that lets the demo be recorded without walking a real route.
-    // Not on the release or debug classpath, so neither build can even reach these APIs.
+    // The library itself ships in every variant through :data, which is where the fused provider comes
+    // from. What is demo-only is this compile dependency and the receiver in src/demo that uses it, so
+    // no other variant contains code that can set a mock location (D26).
     "demoImplementation"(libs.play.location)   // the accessor does not exist yet for a build type created above
 }

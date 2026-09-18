@@ -511,8 +511,10 @@ says how it was verified:
 - **A third build type, `demo`, for the recordings.** It is `initWith(release)`: the same signature, the
   same R8, plus one source set `release` does not have. `app/src/demo/` holds a broadcast receiver that
   turns on `FusedLocationProviderClient.setMockMode` and feeds fixes along a made-up route, and that seeds
-  a thousand points straight into storage for the stress clip. The production build cannot reach any of
-  it: `play-services-location` is on the demo classpath only, through `"demoImplementation"`.
+  a thousand points straight into storage for the stress clip. The library itself is in every variant
+  through `:data` - that is where the fused provider comes from - so what makes this demo-only is the
+  receiver and `:app`'s own compile dependency on it, declared as `"demoImplementation"`. No other variant
+  contains code that calls `setMockMode`.
 - **Rejected: the platform's test providers.** Measured twice on the phone, with and without internet: with
   a mock `fused` provider, and again with a mock `gps` one, `dumpsys location` showed the mock fix while the
   app kept receiving real ones (accuracy 12-43 m, points 1-6 m apart, i.e. standing still). Play services'
@@ -535,8 +537,9 @@ says how it was verified:
     was needed; Room and Koin bring their own.
   - **The demo hooks are in the demo build only.** Scanning the dex and the merged manifest of each APK
     for `MockLocationReceiver`, `routetracker/demo` and `setMockMode`: release 0, 0, 0 and no receiver;
-    demo 1, 1, 2 and the receiver; debug 0, 0, 1 - that one hit is the library's own method name, because
-    the unminified `play-services-location` reaches the debug build through `:data`.
+    demo 1, 1, 2 and the receiver; debug 0, 0, 1 - that one hit is the library's own method name, which is
+    in the debug build because `play-services-location` is unminified there and reaches it through `:data`.
+    The release build is minified, so even that name is gone.
   - **The mock path works and records the made-up route.** On the phone: `setMockMode(true)` returned
     `ok=true` with no `SecurityException`, and a scripted walk recorded points with an accuracy of exactly
     8.0 m and gaps of exactly 110.0 m, all of them on the İstiklal route, with their addresses resolved.

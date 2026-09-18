@@ -16,7 +16,10 @@ feed the fused location provider with mock fixes and seed a route (D26). The rou
 707 m along İstiklal Caddesi, Istanbul, from Taksim to Galatasaray, fed one fix per second at about
 11 m per second with an accuracy of 8 m. All three play in real time at a constant 30 frames per second.
 
-- [Clip 1: fresh install, precise location, start, walk, another app in front, back to the route](docs/media/clip1-tracking.mp4) (95 s)
+- [Clip 1: fresh install, precise location, start, walk, another app in front, back to the route](docs/media/clip1-tracking-fast.mp4) (65 s).
+  The stretch with the calculator in front, from 50 s to 90 s of the take, plays at 4×: nothing moves on
+  screen there, and that tracking continued is only visible on the way back. The unedited take is in the
+  repository as well: [clip1-tracking.mp4](docs/media/clip1-tracking.mp4) (95 s, real time throughout).
 - [Clip 2: the address of a tapped marker, stop, the app killed and reopened with the route kept, reset](docs/media/clip2-address-stop-reset.mp4) (33 s)
 - [Clip 3: a thousand markers, panned and zoomed](docs/media/clip3-stress.mp4) (11 s). Recorded with the
   location permission revoked, so no real position can be on screen; the numbers behind it are in
