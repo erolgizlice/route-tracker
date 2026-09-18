@@ -14,7 +14,8 @@ Three clips, all recorded on a **Samsung Galaxy S23** (Android 16) with the `dem
 with the same certificate and the same R8 output, plus one source set that release does not have - it can
 feed the fused location provider with mock fixes and seed a route (D26). The route on screen is made-up:
 707 m along İstiklal Caddesi, Istanbul, from Taksim to Galatasaray, fed one fix per second at about
-11 m per second with an accuracy of 8 m. All three play in real time at a constant 30 frames per second.
+11 m per second with an accuracy of 8 m. All three are a constant 30 frames per second. Clips 2 and 3 play
+in real time from beginning to end; clip 1 does too, apart from the one stretch named below.
 
 - [Clip 1: fresh install, precise location, start, walk, another app in front, back to the route](docs/media/clip1-tracking-fast.mp4) (65 s).
   The stretch with the calculator in front, from 50 s to 90 s of the take, plays at 4×: nothing moves on

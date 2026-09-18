@@ -71,10 +71,10 @@ Each of these was written or claimed first and corrected after a measurement or 
 - **The raw session transcript.** It contains assistant output, tool output from the author's machine, and
   content that is not about the code. `prompts.md` keeps the author's messages, with that content cut and
   every cut marked `[removed: …]`.
-- **Unguarded media from the physical test phone,** and any log from it. A recording from the phone is
-  committed only when the location permission is revoked, the app's data has been cleared with `pm clear`,
-  the route on screen is made-up and seeded, every frame has been read in a contact sheet, and the device
-  has been restored afterwards with the restore verified. `docs/media/clip3-stress.mp4` is the one file
-  recorded that way; everything else in `docs/media/` comes from an emulator on a made-up route. The same
-  rule is in [`CLAUDE.md`](../../CLAUDE.md) and in the
-  [`device-check`](../../.claude/skills/device-check/SKILL.md) skill.
+- **Unguarded media from the physical test phone,** and any log from it. A recording or a screenshot from
+  the phone is committed only when the location permission is in the state the scene needs, the app's data
+  has been cleared with `pm clear`, the route on screen is made-up and seeded, every frame - and every crop,
+  in the form it is committed in - has been read in a contact sheet, and the device has been restored
+  afterwards with the restore verified. Everything in `docs/media/` was recorded that way; the emulator is
+  used for the instrumented tests, not for media. The same rule is in [`CLAUDE.md`](../../CLAUDE.md) and in
+  the [`device-check`](../../.claude/skills/device-check/SKILL.md) skill.

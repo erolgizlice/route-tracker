@@ -20,13 +20,16 @@ Record every result in the verification log of `docs/decisions.md`.
   2. the app's data is cleared (`pm clear`), so points recorded at real places are gone;
   3. the route on screen is made-up and seeded into the database (see `docs/stress/README.md`);
   4. every frame is read in a contact sheet (`ffmpeg -vf "fps=1,tile=8x2"`) and checked for real
-     addresses, account names and anything identifying in the status bar, before anything is committed;
+     addresses, account names and anything identifying in the status bar, before anything is committed. A
+     screenshot that is committed as a crop is read in the form it is committed in: the crop is what
+     ships, so the crop is what gets scanned;
   5. the device is restored right afterwards and the restore is verified one item at a time: test
      providers removed, `appops` back to `default`, Do Not Disturb off, screen timeout back to its old
      value, app data cleared.
 
-  `docs/media/clip3-stress.mp4` was recorded this way; everything else in `docs/media/` comes from an
-  emulator on a made-up route.
+  Everything in `docs/media/` was recorded this way, on the phone. The emulator is used for the
+  instrumented tests; it is not a source of media any more, and its own recorder needed a host-side
+  workaround that the phone does not (see "Recording a demo").
 - **Always pass `-s <serial>`.** A phone and an emulator are often connected at the same time.
 - **Install the debug build** (`./gradlew :app:installDebug`). The Maps key is restricted to the package name
   and this machine's debug signing certificate, so other builds show a grey map.

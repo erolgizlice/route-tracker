@@ -81,8 +81,9 @@ ANDROID_SERIAL=emulator-5554 ./gradlew :data:connectedDebugAndroidTest   # Room 
   `pm clear`, so no earlier real points remain; the route on screen is made-up and seeded into the
   database; every frame is read in a contact sheet before anything is committed; and the device is restored
   afterwards with the restore verified (test providers removed, appops back to default, Do Not Disturb off,
-  settings back). **Logs from a physical device are never committed.** `docs/media/clip3-stress.mp4` is the
-  only file recorded on the phone; the rest of `docs/media/` comes from an emulator on a made-up route.
+  settings back). **Logs from a physical device are never committed,** and a screenshot that is committed
+  as a crop is scanned in the form it is committed in. Everything in `docs/media/` was recorded on the
+  phone under those conditions; the emulator is used for the instrumented tests, not for media.
 - **Measure, don't infer.** Read build and test logs, not exit codes. Delete old test results before
   quoting pass counts; stale XML has already produced a false result once.
 - Label evidence in `docs/decisions.md` as Measured, Reasoned, or Device check pending, and add
