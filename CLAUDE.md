@@ -76,14 +76,16 @@ ANDROID_SERIAL=emulator-5554 ./gradlew :data:connectedDebugAndroidTest   # Room 
 
 - Before a claim about builds or tests, follow the `verify-claim` skill. Before testing on a device or
   emulator, follow the `device-check` skill.
-- **Media from a physical device only under all of these conditions,** otherwise from an emulator: the
-  location permission is revoked, so no real position can be drawn; the app's data is cleared with
-  `pm clear`, so no earlier real points remain; the route on screen is made-up and seeded into the
-  database; every frame is read in a contact sheet before anything is committed; and the device is restored
-  afterwards with the restore verified (test providers removed, appops back to default, Do Not Disturb off,
-  settings back). **Logs from a physical device are never committed,** and a screenshot that is committed
-  as a crop is scanned in the form it is committed in. Everything in `docs/media/` was recorded on the
-  phone under those conditions; the emulator is used for the instrumented tests, not for media.
+- **Media from a physical device only under all of these conditions,** otherwise from an emulator:
+  **no real location reaches the screen** - either the permission is revoked so nothing can be drawn, or
+  every fix the app receives comes from the `demo` build's own mock source, and which one it was is checked
+  against the recorded coordinates; the app's data is cleared with `pm clear`, so no earlier real points
+  remain; the route on screen is made-up and seeded; every frame is read in a contact sheet before anything
+  is committed, and a screenshot committed as a crop is read in the form it is committed in; and the device
+  is restored afterwards with the restore verified (mock sources removed, appops back to default, Do Not
+  Disturb off, settings back). **Logs from a physical device are never committed.** Everything in
+  `docs/media/` was recorded on the phone under those conditions; the emulator is used for the instrumented
+  tests, not for media.
 - **Measure, don't infer.** Read build and test logs, not exit codes. Delete old test results before
   quoting pass counts; stale XML has already produced a false result once.
 - Label evidence in `docs/decisions.md` as Measured, Reasoned, or Device check pending, and add

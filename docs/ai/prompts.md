@@ -4,7 +4,9 @@ The messages the author sent to the Claude Code session that built this project,
 original language (Turkish), each with a one-line English summary. Only the author's messages are included:
 no assistant replies and no tool output. Answers the author gave through the assistant's multiple-choice
 questions are not messages; the resulting decisions are recorded in `docs/decisions.md`. Commands the
-author ran in their own terminal, and the tool's task notifications, are not messages either.
+author ran in their own terminal, and the tool's task notifications, are not messages either. The
+messages here run up to the one that produced the last commit; the review that followed it is, in the
+nature of things, not in the repository it reviews.
 
 Content that is not about the code was cut, and every cut is marked `[removed: …]`, mostly `[removed: not about the code]`: other companies and
 projects, people, the hiring process, local paths, device identifiers and key fragments. Technical content is
@@ -969,4 +971,59 @@ SONRA, SIRAYLA:
 5. Medyayı commit et (kullanıcı klipleri onayladı sayılır: review session'ı bütün kareleri okudu ve temiz buldu; yine de kullanıcı kendi gözüyle görecek).
 6. verify-claim ile testler taze, tarama tekrar, temiz klonda key'siz build.
 7. Bana raporla ve DUR. Merge ve push kullanıcıda.
+````
+
+---
+
+## 29. 2026-09-18 09:05 UTC
+
+**Summary:** Record the stress clip again, starting from a cold start, and take the startup numbers and the frame statistics from that same run.
+
+````text
+EK (önceki review'daki düzeltmelerden SONRA, ancak 13:30'a kadar yetişiyorsa):
+
+Klip 3'ü soğuk açılışla yeniden çek. Şu an yalnızca gezinme var; asıl gösterilmesi gereken şey bin marker'la uygulamanın açılışı, çünkü onun kanıtı şimdilik sadece docs/stress'teki tabloda.
+
+1. Telefonda: demo build kurulu, konum izni kaldırılmış, DND açık, uygulama verisi temiz. Bin noktayı tohumla, uygulamayı force-stop et.
+2. Kaydı başlat, uygulamayı aç, harita ve bin marker ekrana gelsin, sonra 8-10 s kaydır ve zoom yap. Toplam 15-20 s.
+3. AYNI KOŞUDA demo build'in soğuk açılışını ölç (am start -W TotalTime ve Fully drawn), 3 koşunun medyanı. docs/stress'teki tabloya "demo build, telefon" satırı olarak ekle; videodaki açılışın hangi sayıya karşılık geldiği belli olsun.
+4. dumpsys gfxinfo'yu yine aynı koşudan al, docs/stress'teki sayıları güncelle.
+5. Gizlilik kapısı aynı: kareleri kontak sayfasında oku, ana ekran/son uygulamalar/bildirim gölgesi kadraja girmesin, cihazı sonunda geri al ve geri almayı doğrula.
+6. README'de klip 3'ün açıklamasına "soğuk açılışla başlıyor" cümlesini ekle.
+
+Yetişmiyorsa mevcut klip kalsın, bana söyle.
+````
+
+---
+
+## 30. 2026-09-18 09:22 UTC
+
+**Summary:** Review 14: three files still say the media comes from an emulator, the README still claims every clip plays in real time, and the rule should say how a cropped screenshot is scanned.
+
+````text
+ON DÖRDÜNCÜ REVIEW. Bağımsız doğrulandı: 32 test taze XML ile 0 hata; HEAD'in klonu medya dahil build oluyor; imzalama property'si boşken assembleRelease imzasız APK üretiyor; dex taraması release ve benchmark'ta demo kancası yok diyor; terim taraması üç kapsamda 0, kontrol ateşledi; prompts.md'deki 28 mesajın hepsi transcript'ten yalnızca [removed] işaretlerinde ayrılıyor (sırada gönderilen dördü dahil); yeni klip 3 sabit 30 fps, konum metadata'sı yok, kareleri temiz.
+
+DÜZELTMELER:
+1. P1: docs/media içindeki HER ŞEY artık telefondan. CLAUDE.md:85, docs/ai/README.md:78 ve .claude/skills/device-check/SKILL.md:29 hâlâ "klip 3 telefondan çekilen tek dosya, gerisi emülatörden" diyor. Üçünü de gerçeğe getir: bütün medya telefondan, sayılan koşullar altında (uydurma tohumlanmış rota, konum izni durumu, kare kare tarama, cihazın geri alınması ve doğrulanması). Emülatör artık yalnızca instrumented testler için kullanılıyor; öyle yaz.
+2. P2: README'nin Demo paragrafı "All three play in real time" diyor, ama klip 1'in bir bölümü 4× oynuyor. Cümleyi düzelt: sabit 30 fps hepsinde geçerli; klip 2 ve 3 baştan sona gerçek zamanlı; klip 1 yalnızca belirtilen aralıkta hızlandırılmış.
+3. Küçük: notification.png kırpılmış bir ekran görüntüsü. Kural metninde "commit edilen kırpılmış hâli taranır" cümlesi varsa yeterli, yoksa bir cümle ekle.
+
+Sonra: verify-claim ile testler taze, tarama tekrar, ve bana raporla. Merge ve push kullanıcıda; sen push etme.
+````
+
+---
+
+## 31. 2026-09-18 09:25 UTC
+
+**Summary:** Review 15: the rule's first condition is still the permission, when the real one is that no real location reaches the screen; then close prompts.md and run the checks again.
+
+````text
+ON BEŞİNCİ REVIEW. İki düzeltme doğru, biri yarım kaldı.
+
+1. P2: CLAUDE.md ve .claude/skills/device-check/SKILL.md'deki kuralın BİRİNCİ koşulu hâlâ "konum izni kaldırılmış olacak" diyor, sonra "docs/media'daki her şey bu koşullarla çekildi" deniyor. Klip 1 ve klip 2 izin VERİLMİŞKEN çekildi; gerçek konumu ekran dışında tutan şey, uygulamanın yalnızca demo build'inin sahte fix'lerini almasıydı. İzin yalnızca klip 3'te kaldırıldı.
+   Koşulu gerçek değişmezle değiştir: ekrana gerçek konum ulaşmaz; bu ya izni kaldırarak (klip 3) ya da uygulamanın aldığı her fix'in demo kaynağından gelmesiyle (klip 1-2) sağlanır ve kaydedilen koordinatlara bakılarak doğrulanır. docs/ai/README.md'deki ifade zaten doğru, üçünü aynı cümleye getir.
+
+2. SON İŞ: prompts.md'ye 09:01 UTC'den sonraki mesajlarımı ekle (ON DÖRDÜNCÜ REVIEW ve bu mesaj). Dosyanın girişine tek cümle: yayımlanan mesajlar son commit'i üreten mesaja kadar olanlardır, ondan sonraki review alışverişi doğal olarak burada değil. Her mesajın orijinalinden yalnızca [removed] işaretlerinde ayrıldığını programatik doğrula ve docs/ai/README'deki mesaj numaralarını güncelle.
+
+3. Sonra verify-claim ile testleri taze koştur, taramayı tekrarla, bana raporla ve DUR. Merge ve push kullanıcıda.
 ````

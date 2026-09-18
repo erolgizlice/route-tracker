@@ -15,17 +15,20 @@ Record every result in the verification log of `docs/decisions.md`.
   location and addresses. Keep them in a scratch directory. **Logs from a physical device are never
   committed,** and a recording or screenshot from one is committed only when all of these hold, otherwise
   record on an emulator:
-  1. the location permission is revoked (`pm revoke` both `ACCESS_FINE_LOCATION` and
-     `ACCESS_COARSE_LOCATION`), so the my-location dot cannot be drawn - confirm with a screenshot;
+  1. **no real location reaches the screen.** Two ways, and the take says which one it uses: revoke the
+     permission (`pm revoke` both `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION`), so the my-location
+     dot cannot be drawn - confirm with a screenshot - or let every fix the app receives come from the
+     `demo` build's own mock source, and check the recorded coordinates afterwards: they have to be the
+     made-up route, and the accuracy the mock sends (8 m here) rather than a real reading;
   2. the app's data is cleared (`pm clear`), so points recorded at real places are gone;
   3. the route on screen is made-up and seeded into the database (see `docs/stress/README.md`);
   4. every frame is read in a contact sheet (`ffmpeg -vf "fps=1,tile=8x2"`) and checked for real
      addresses, account names and anything identifying in the status bar, before anything is committed. A
      screenshot that is committed as a crop is read in the form it is committed in: the crop is what
      ships, so the crop is what gets scanned;
-  5. the device is restored right afterwards and the restore is verified one item at a time: test
-     providers removed, `appops` back to `default`, Do Not Disturb off, screen timeout back to its old
-     value, app data cleared.
+  5. the device is restored right afterwards and the restore is verified one item at a time: mock sources
+     removed, `appops android:mock_location` back to `default`, Do Not Disturb off, screen timeout back to
+     its old value, app data cleared.
 
   Everything in `docs/media/` was recorded this way, on the phone. The emulator is used for the
   instrumented tests; it is not a source of media any more, and its own recorder needed a host-side

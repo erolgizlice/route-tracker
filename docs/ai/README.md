@@ -24,10 +24,10 @@ commit carries a `Co-Authored-By: Claude Opus 5` trailer.
    out to be invalid, go to the verification log in `docs/decisions.md`.
 5. **Independent re-measurement.** At each milestone, the reviewer session re-ran the claims itself: test
    counts, mutations, a scan for sensitive terms, and on-device behaviour. Its findings reached the working
-   session as the author's messages ([`prompts.md`](prompts.md), messages 3–7, 10, 11, 13, 18, 21 and 28)
-   and were fixed in follow-up commits. Those messages, like the delivery brief (message 12) and the briefs
-   for the last rounds (messages 16, 17, 19, 20, 22 and 26), were prepared in the reviewer session, and the
-   author decided what to send. Messages the author sent while the assistant was still working are in the
+   session as the author's messages ([`prompts.md`](prompts.md), messages 3–7, 10, 11, 13, 18, 21, 28, 30
+   and 31) and were fixed in follow-up commits. Those messages, like the delivery brief (message 12) and
+   the briefs for the last rounds (messages 16, 17, 19, 20, 22, 26 and 29), were prepared in the reviewer
+   session, and the author decided what to send. Messages the author sent while the assistant was still working are in the
    transcript as queued commands; they are included, in the order they were sent.
 6. **Human review before publishing.** Until the morning of 2026-09-17 the assistant also pushed. From then on
    it only committed; the author reviewed each commit locally and pushed.
@@ -72,9 +72,10 @@ Each of these was written or claimed first and corrected after a measurement or 
   content that is not about the code. `prompts.md` keeps the author's messages, with that content cut and
   every cut marked `[removed: …]`.
 - **Unguarded media from the physical test phone,** and any log from it. A recording or a screenshot from
-  the phone is committed only when the location permission is in the state the scene needs, the app's data
-  has been cleared with `pm clear`, the route on screen is made-up and seeded, every frame - and every crop,
-  in the form it is committed in - has been read in a contact sheet, and the device has been restored
+  the phone is committed only when no real location can reach the screen - the permission is revoked, or
+  every fix comes from the `demo` build's mock source, checked against the recorded coordinates - the app's
+  data has been cleared with `pm clear`, the route on screen is made-up and seeded, every frame, and every
+  crop in the form it is committed in, has been read in a contact sheet, and the device has been restored
   afterwards with the restore verified. Everything in `docs/media/` was recorded that way; the emulator is
   used for the instrumented tests, not for media. The same rule is in [`CLAUDE.md`](../../CLAUDE.md) and in
   the [`device-check`](../../.claude/skills/device-check/SKILL.md) skill.
