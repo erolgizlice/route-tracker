@@ -1062,3 +1062,48 @@ Testler taze (verify-claim), tarama tekrar. Commit et, push etme.
 EK MADDE (kod değişikliği değil, yalnızca D21'e üç cümle):
 AddressLookup'ın politikası (kayıtlı adres varsa onu döndür, yoksa çöz, yalnızca UPDATE ile yaz, çözülemezse null) :data'daki RoomAddressLookup'ta duruyor. Bunu D21'de açıkça bir karar olarak yaz: bu aslında bir use case, :core'a EnsureAddress(repository, resolver) olarak alınabilirdi ve o zaman JVM'de test edilirdi; :data'da bırakıldı çünkü tek bağımlılığı DAO ve geocoder, ve UPDATE-only kısıtı (D14) zaten DAO'nun yanında duruyor. Elenen alternatifi ve bedelini (JVM testi yerine cihaz ölçümü) yaz. Kodu DEĞİŞTİRME.
 ````
+
+---
+
+## 33. 2026-09-18 10:20 UTC
+
+**Summary:** Review 16: the reducer round is right, but the README's Build and test section still quotes the old test counts; measure them again today before writing them.
+
+````text
+ON ALTINCI REVIEW. Reducer turu doğru. Bağımsız doğrulandı: 50 JVM testi taze XML ile 0 hata (:core 25, :feature:tracking 25); D18 terimini düşüren mutasyon TAM olarak bir testi kırdı ve geri yüklemede md5 aynı; 12 intent'in hepsinde davranış eski kodla eşdeğer (PermissionResult'ta önceki issue anlamı, StartClicked'in yan etki kapısı ve IssueActionClicked'in redüksiyon sonrası okuması dahil); prompts.md'deki 32 mesaj transcript'le birebir; tarama 0.
+
+TEK DÜZELTME: README "Build and test" bölümü eski sayılarda.
+- Satır 95: "32 JVM tests" → 50 JVM testi (:core 25, :feature:tracking 25) ve komutun ikisini de kapsadığından emin ol.
+- Satır 103: "On 2026-09-17 all 38 tests passed ... (32 JVM, 6 on an API 36 emulator)" → bugünün ölçümü: 56 test (50 JVM + 6 instrumented) ve instrumented olanların telefonda koştuğu.
+Sayıları verify-claim ile bugün yeniden ölçüp öyle yaz; decisions.md'deki tarihli eski satırlara DOKUNMA, onlar günlük.
+
+Sonra bana raporla ve DUR. Merge ve push kullanıcıda.
+````
+
+---
+
+## 34. 2026-09-18 10:34 UTC
+
+**Summary:** The videos in the README do not play, because GitHub will not play a repository video inline: add a short GIF preview for each clip, keep the mp4s as the full clips, and record which seconds each GIF comes from.
+
+````text
+README'DEKİ VİDEOLAR OYNAMIYOR. Sebep: GitHub depo içindeki .mp4'leri Markdown'da satır içi oynatmıyor; link dosya sayfasına gidiyor ve o sayfa bu boyuttaki videoları göstermiyor ("we can't show files that are this big").
+
+ÇÖZÜM: her klip için kısa bir GIF önizleme ekle, mp4'ler tam klip olarak kalsın.
+
+1. Üç GIF üret, docs/media/ altına:
+   - clip1: marker'ların biriktiği bir pencere seç (tek marker'lı sakin kısmı değil; 3-4 marker düşmeli), 12 s
+   - clip2: marker'a dokunma ve adres kartının açılması, 8 s
+   - clip3: bin marker'la kaydırma ve zoom, 8 s
+   Komut kalıbı (ölçüldü: 12 s / 300px / 10 fps ≈ 0,8 MB):
+   ffmpeg -ss <BAŞLA> -t <SÜRE> -i IN.mp4 -vf "fps=10,scale=300:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=3" -loop 0 OUT.gif
+   Her biri ≤ 1 MB olsun; büyükse fps'i 8'e, genişliği 280'e çek.
+
+2. README'nin Demo bölümü: her klip için önce GIF'i <img> ile satır içi göster, hemen altında mp4 linkini "full clip" olarak bırak ve tek cümleyle söyle: GitHub depo videolarını satır içi oynatmaz, link dosya sayfasını açar.
+
+3. GIF'lerin hangi saniye aralığından alındığını ve boyutlarını doğrulama günlüğüne yaz. GIF'lerin kendisini kare kare kontrol et (gizlilik kuralı GIF için de geçerli).
+
+4. Testleri koşturmaya gerek yok, kod değişmiyor. Taramayı yine yap. prompts.md'ye bu mesajı ekle.
+
+Commit et, push etme. Kullanıcı push edecek.
+````
