@@ -10,38 +10,28 @@ Every design decision, the alternative it beat, and how it was verified is in
 
 ## Demo
 
-Three clips, all from the release-like `benchmark` build, all playing in real time at a constant 30 frames
-per second.
+Three clips, all recorded on a **Samsung Galaxy S23** (Android 16) with the `demo` build type: `release`
+with the same certificate and the same R8 output, plus one source set that release does not have - it can
+feed the fused location provider with mock fixes and seed a route (D26). The route on screen is made-up:
+707 m along İstiklal Caddesi, Istanbul, from Taksim to Galatasaray, fed one fix per second at about
+11 m per second with an accuracy of 8 m. All three play in real time at a constant 30 frames per second.
 
-Clips 1 and 2 are the app in use, recorded on an **API 36 emulator** with a scripted route: a made-up 707 m
-route along İstiklal Caddesi, Istanbul, from Taksim to Galatasaray, with the location sent once a second by
-`adb emu geo fix` at about 11 m per second.
-
-- [Clip 1: fresh install, precise location, start, walk, background, notification, return](docs/media/clip1-tracking.mp4) (104 s)
-- [Clip 2: address on tap, stop, swipe away from recents, reopen, reset](docs/media/clip2-address-stop-reset.mp4) (36 s)
-- [Clip 3: a thousand markers, panned and zoomed](docs/media/clip3-stress.mp4) (11 s), recorded on a
-  **Samsung Galaxy S23** with the location permission revoked, so there is no my-location dot and no real
-  position on screen; its thousand-point route was written straight into the database. The same test on the
-  emulator is bound by the emulator's GPU emulation, so the numbers that decide come from the phone:
+- [Clip 1: fresh install, precise location, start, walk, another app in front, back to the route](docs/media/clip1-tracking.mp4) (95 s)
+- [Clip 2: the address of a tapped marker, stop, the app killed and reopened with the route kept, reset](docs/media/clip2-address-stop-reset.mp4) (33 s)
+- [Clip 3: a thousand markers, panned and zoomed](docs/media/clip3-stress.mp4) (11 s). Recorded with the
+  location permission revoked, so no real position can be on screen; the numbers behind it are in
   [`docs/stress/README.md`](docs/stress/README.md).
 
-**Why the phone appears in clip 3 only.** The app receives its location from Play services' fused client, and
-on this phone that client ignores the platform's test providers: with a mock `fused` provider, and again with
-a mock `gps` provider, the app kept receiving real fixes (verification log, "Mock location on the phone").
-Recording clips 1 and 2 there would have put the tester's real location on screen, so they stay on the
-emulator. Clip 3 needs no location at all, which is why it could be recorded on the phone.
+While the app is in the background in clip 1, a calculator is in front: the phone's home screen, its
+recents and its notification shade stay out of frame, because they carry the tester's own data. The system
+permission dialog is in Turkish, the phone's language; the app itself ships English strings only.
 
-Clip 1 stops moving for a few seconds before the app goes to the background, and the notification shade stays
-open while the route continues in the background. In an earlier take, the first location delivery after that
-switch arrived 18 s late and the next marker landed 196 m after the previous one (verification log, "Demo
-re-recorded").
-
-| Seven markers, the last three recorded in the background | Notification while in the background | Address of a tapped marker |
+| Seven markers, the last three recorded in the background | The foreground notification | Address of a tapped marker |
 |---|---|---|
-| <img src="docs/media/route.png" width="240" alt="Route along İstiklal Caddesi with seven markers: a teal pin at the start, five teal dots, and a red pin at the newest point"> | <img src="docs/media/notification.png" width="240" alt="Foreground service notification showing six markers and a Stop action"> | <img src="docs/media/address.png" width="240" alt="Details card with the address of the tapped marker, which is drawn as a blue pin"> |
+| <img src="docs/media/route.png" width="240" alt="Route along İstiklal Caddesi with seven markers: a teal pin at the start, five teal dots, and a red pin at the newest point"> | <img src="docs/media/notification.png" width="240" alt="Notification reading Tracking your route, six markers, a new one every 100 m"> | <img src="docs/media/address.png" width="240" alt="Details card with the address of the tapped marker, which is drawn as a blue pin"> |
 
-In clip 1 the markers are 110, 110, 110, 143, 110 and 110 m apart. The last three were recorded while the app was
-in the background, and the notification's marker count rises from 4 to 7 (verification log, "Demo re-recorded").
+In clip 1 the markers are 110 m apart, which is what a fix every 5 s at 11 m per second gives against a
+100 m rule. Three of the seven are recorded while the app is in the background.
 
 ## Requirements and where they are implemented
 
@@ -113,6 +103,11 @@ a user gets: no ahead-of-time compilation, no minification, and debug-only check
 line - the debug signing config - so the Maps key restricted to that certificate still works; everything
 else, including minification and resource shrinking, is inherited with `initWith`, and the two APKs come out
 the same size to the byte (D26). It is a measurement tool, not a shipping build.
+
+**The `demo` build type** is `release` with the same certificate and the same R8 output, plus
+`app/src/demo/`: a receiver that feeds the fused provider with mock locations and can seed a route. It
+exists so the demo can be recorded on a real phone without walking a real route, and none of it is in
+`release` or `debug` - the dex of each APK was scanned to prove that (D26).
 
 **Signing a release build** needs four properties in `~/.gradle/gradle.properties`, never in the repository:
 `RT_RELEASE_STORE_FILE` (an absolute path), `RT_RELEASE_STORE_PASSWORD`, `RT_RELEASE_KEY_ALIAS` and

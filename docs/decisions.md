@@ -508,6 +508,17 @@ says how it was verified:
   debug build and then updating to the release build does not work either: the signatures differ and the
   install is refused. So clip 3 stays on the `benchmark` build - the same code and the same R8 output - and
   the README says which clip came from which build.
+- **A third build type, `demo`, for the recordings.** It is `initWith(release)`: the same signature, the
+  same R8, plus one source set `release` does not have. `app/src/demo/` holds a broadcast receiver that
+  turns on `FusedLocationProviderClient.setMockMode` and feeds fixes along a made-up route, and that seeds
+  a thousand points straight into storage for the stress clip. The production build cannot reach any of
+  it: `play-services-location` is on the demo classpath only, through `"demoImplementation"`.
+- **Rejected: the platform's test providers.** Measured twice on the phone, with and without internet: with
+  a mock `fused` provider, and again with a mock `gps` one, `dumpsys location` showed the mock fix while the
+  app kept receiving real ones (accuracy 12-43 m, points 1-6 m apart, i.e. standing still). Play services'
+  fused client ignores them. The app's own `setMockMode` is the path it does honour.
+- **Rejected: putting the mock source in the production path behind a flag.** A release build that can fake
+  the user's location is a release build that can fake the user's location.
 - **Evidence:** Measured (verification log, "Release build on the emulator").
   - `assembleRelease` with the four properties present produces `app-release.apk`, signed with certificate
     `B9:E3:24:73:94:3C:19:D0:F5:17:1E:D1:55:2F:78:AB:78:05:2D:AA`; with them absent, the same task produces
@@ -522,6 +533,14 @@ says how it was verified:
     route; Reset emptied it. The log holds no `ClassNotFoundException`, `NoSuchMethodError`,
     `NoSuchFieldError`, `NoClassDefFoundError` or Koin failure, and no `FATAL` line. No extra ProGuard rule
     was needed; Room and Koin bring their own.
+  - **The demo hooks are in the demo build only.** Scanning the dex and the merged manifest of each APK
+    for `MockLocationReceiver`, `routetracker/demo` and `setMockMode`: release 0, 0, 0 and no receiver;
+    demo 1, 1, 2 and the receiver; debug 0, 0, 1 - that one hit is the library's own method name, because
+    the unminified `play-services-location` reaches the debug build through `:data`.
+  - **The mock path works and records the made-up route.** On the phone: `setMockMode(true)` returned
+    `ok=true` with no `SecurityException`, and a scripted walk recorded points with an accuracy of exactly
+    8.0 m and gaps of exactly 110.0 m, all of them on the İstiklal route, with their addresses resolved.
+    Seeding wrote a thousand points in 14 s, and the control bar then read "1000 markers".
   - The map is grey in that build until the release certificate is registered, and the log says so exactly:
     `Authorization failure` followed by `Android Application (<cert_fingerprint>;<package_name>):` with the
     fingerprint above and `com.erolgizlice.routetracker`.
@@ -588,3 +607,8 @@ says how it was verified:
 | 2026-09-18 | Edge-to-edge bottom card | Before: emulator rows y=2240-2339 varied across the width (deviation 11-21), so the map already ran behind the gesture bar; the S23's same rows were a flat RGB (252, 253, 252) contrast scrim (deviation 1-9). After turning the scrim off and extending the overlay: both devices show map pixels there. Contrast 19.2 : 1 on the card's text and 10.0 : 1 at the darkest point where the map shows through; the Google logo's lowest pixel stays about 200 px above the card; Start and Reset 5 / 5 on the S23, Start, Stop and Reset 5 / 5 each on the emulator; rotation, the keyless build and the placeholder path unchanged (D25) |
 | 2026-09-18 | The app draws the navigation-bar scrim itself | Replaced the 24 dp fade above the card with a scrim between the map and the card: as tall as the navigation bar inset plus 32 dp, the theme's background colour at alpha 0 / 0.4 / 0.8 downwards, `clearAndSetSemantics {}`. Re-measured after the change: Google logo's lowest pixel y=1884 (S23) and y=1894 (emulator) against a card starting at y=2023 / y=2064 and a 154 px scrim; card text contrast 19.0-19.2 : 1 and 10.0 : 1 where the map shows through; Start, Stop and Reset 5 / 5 each on the emulator and Start and Reset 5 / 5 on the S23; the scrim's node carries no text, description, focus or click; landscape and the keyless build unchanged; 38 / 38 tests from fresh XML (D25) |
 | 2026-09-18 | Release build on the emulator | `assembleRelease` signed from properties that live outside the repository; without them the same task produces an unsigned APK (checked with a Gradle home that has none). `release` and `benchmark` APKs are the same size to the byte, 1 433 090, with the same 1 954 484 byte dex; only the certificate differs. On the signed release APK: foreground service after Start, 3 points from a 330 m walk, addresses resolved and stored, Stop ended the session, force-stop and reopen kept the route, Reset emptied it, and the log had no ClassNotFound / NoSuchMethod / NoSuchField / NoClassDefFound / Koin error and no FATAL. An earlier reading of "no addresses" was invalid: the emulator had just booted and its network was not up yet; repeated with the network confirmed, the addresses were there (D26) |
+| 2026-09-18 | Mock location on the phone, second attempt | Repeated after the phone's internet was restored, in case that was the reason: it was not. With a `fused` test provider the app again recorded real fixes (accuracy 25, 16, 16, 12, 12 m, 2-6 m apart). The app's data was wiped immediately, the provider removed and the appop set back to default (D26) |
+| 2026-09-18 | The app's own mock source | `appops set <package> android:mock_location allow`, then `FusedLocationProviderClient.setMockMode(true)` from a receiver in the demo source set: `ok=true`, no `SecurityException`. A scripted walk at 11 m/s recorded 4 points with accuracy 8.0 m and gaps of exactly 110.0 m, all on the made-up İstiklal route, with addresses resolved ("Katip Mustafa Çelebi, İstiklal Cd. No:61"). Seeding a thousand points took 14 s and the control bar read "1000 markers" (D26) |
+| 2026-09-18 | Demo hooks are not in release | Dex and manifest scan of the three APKs for `MockLocationReceiver`, `routetracker/demo` and `setMockMode`: release 0 / 0 / 0 with no receiver in the manifest; demo 1 / 1 / 2 with the receiver; debug 0 / 0 / 1, the library's own method name. Release and demo APKs differ by 48 bytes (D26) |
+| 2026-09-18 | The demo recorded on the phone | All three clips come from the Galaxy S23 with the demo build. Clip 1 (95.4 s): fresh install, the Turkish system permission dialog, 7 points recorded from mock fixes at 8.0 m accuracy, the calculator in front while tracking continued, then back to the app. Clip 2 (33.0 s): the address card, Stop, the app killed while the calculator was in front, reopened with the route kept, Reset to zero. Clip 3 (11.3 s): a thousand seeded points, location permission revoked, `dumpsys gfxinfo` from the same run reporting 573 frames with 2 janky (0.35 %) and a 99th percentile of 5 ms. Every clip is constant 30 fps with a largest frame gap of 33 ms |
+| 2026-09-18 | Privacy gate on the phone clips | Contact sheets at one frame per second or slower were read before anything was committed. The first clip 1 take was rejected: the Clock app, used as the background scene, showed the tester's own alarms. Re-recorded with the calculator, which shows only "0". No home screen, recents or notification shade in any frame, no account names, nothing identifying in the status bar. Afterwards the phone was restored and the restore verified: mock_location appop back to default, location permissions revoked, app data cleared, Do Not Disturb off, screen timeout back to 30 s, no active mock providers |

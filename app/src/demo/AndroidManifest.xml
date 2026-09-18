@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Demo build type only: a way to push mock locations into the fused provider, so a demo can be recorded without
+     walking a real route. Never part of a release build. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver
+            android:name="com.erolgizlice.routetracker.demo.MockLocationReceiver"
+            android:exported="true" />
+    </application>
+</manifest>

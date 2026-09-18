@@ -67,6 +67,12 @@ android {
             // Unsigned without the properties: `assembleRelease` still has to work in a fresh clone.
             if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
         }
+        // Release with the demo hooks: same signature, same R8, plus the src/demo sources that can feed
+        // mock locations and seed a route. Only this build type gets that code (D26).
+        create("demo") {
+            initWith(getByName("release"))
+            matchingFallbacks += listOf("release")
+        }
         // Release, with one difference: it is signed with the debug key, so the Maps key restricted to the
         // debug certificate still works. `initWith` copies everything else - minify, resource shrinking,
         // the ProGuard files, not debuggable - so the two cannot drift apart, which is what makes the
@@ -94,4 +100,8 @@ dependencies {
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)
+
+    // Demo only: the mock-location hook that lets the demo be recorded without walking a real route.
+    // Not on the release or debug classpath, so neither build can even reach these APIs.
+    "demoImplementation"(libs.play.location)   // the accessor does not exist yet for a build type created above
 }
