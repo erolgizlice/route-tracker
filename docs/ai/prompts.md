@@ -769,3 +769,204 @@ KLİP 1 VE 2'Yİ S23'TE ÇEK. Cut line 11:00: aşağıdaki 2. madde çalışmazs
    DND kapat, ekran zaman aşımını eski değerine al. Telefonda Haritalar gerçek konumu gösteriyor mu, doğrula.
 7. README ve decisions: hangi klibin hangi cihazda çekildiği, S23 kliplerinde konumun test sağlayıcısıyla verildiği, hangi sahnelerin neden emülatörde kaldığı açıkça yazılacak.
 ````
+
+---
+
+## 18. 2026-09-17 20:48 UTC
+
+**Summary:** Review 11: the repository's own rule still forbids media from a physical device while one clip comes from one; do not commit the clip that is not chosen; write down what the marker count shows during launch.
+
+````text
+ON BİRİNCİ REVIEW. Bağımsız doğrulandı: 32 JVM testi taze XML ile 0 hata (19/19 task); a8f4f97'nin temiz klonu key'siz 107/107 executed, HAS_MAPS_API_KEY=false, 32 test, git status boş; büyük/küçük harf ve Türkçe diyakritik katlayan taramada 71 metin dosyası + tüm commit mesajları + tüm diff'lerde 25 terimin hiçbiri yok, pozitif kontroller ateşledi; prompts.md'deki 17 mesajın hepsi transcript'ten yalnızca [removed] işaretlerinde ayrılıyor; telefonda sahte sağlayıcı yok, appop default, uygulama verisi silinmiş, DND kapalı. Dört klip de 30 fps CFR, konum metadata'sı yok; kareleri tek tek inceledim, gizlilik temiz. Seçili marker'ın mavi pin olması, eski klipteki "hangi marker seçildi" eksiğini kapatmış.
+
+DÜZELTMELER:
+1. P1: Repo kendi kuralıyla çelişiyor. Klip 3 fiziksel telefondan, ama CLAUDE.md ("Never commit screenshots, recordings or logs from a physical device"), .claude/skills/device-check/SKILL.md ve docs/ai/README.md ("All media in docs/media/ comes from an emulator on a made-up route") hâlâ tersini söylüyor. Kuralı fiilen uyguladığın hâliyle yaz: telefondan medya ancak (a) konum izni kaldırılmış, (b) uygulama verisi `pm clear` ile silinmiş, (c) rota uydurma ve tohumlanmış, (d) her kare kontak sayfasında taranmış, (e) cihaz sonradan geri alınmış ve doğrulanmışsa alınır; aksi hâlde emülatör. Üç dosyada da aynı kural görünsün. docs/ai/README'deki "not included" maddesini de düzelt.
+2. P2: clip1 ile clip1-tracking-fast arasındaki seçimi kullanıcı yapacak. README şu an yalnızca gerçek zamanlı olanı gösteriyor. Seçilmeyen dosyayı commit etme; hızlandırılmış olan seçilirse README'de hangi aralığın kaç kat oynadığı açıkça yazılsın.
+3. P3: Klip 2'de uygulama yeniden açılırken kontrol çubuğu yaklaşık 2 s boyunca "Not tracking, 0 markers" gösteriyor, sonra 7'ye dönüyor. Harita alanı artık düz olduğu için eskisinden daha görünür. Koda dokunma; D24'e bir cümleyle yaz (rota okunana kadar sayaç henüz gerçek değeri değil).
+
+Kod donduruldu. Bunları commit et, push etme.
+````
+
+---
+
+## 19. 2026-09-17 21:01 UTC
+
+**Summary:** Polish the UI and then record once: measure what is drawn behind the navigation bar, let the map run to the bottom edge behind a translucent card, and verify contrast, tap targets, rotation and the keyless path.
+
+````text
+UI ROTUŞLARI, SONRA TEK SEFERDE YENİDEN KAYIT. İş mantığına dokunma; sadece TrackingScreen, MainActivity ve gerekiyorsa tema.
+
+ÖNCE ÖLÇ (kod yazmadan):
+1. Emülatörde harita zaten navigation bar alanının arkasına çiziliyor (review session'ı ölçtü: inset bölgesi y=2274-2340, oradaki pikseller harita renkleri). S23'te üç tuşlu navigation bar var ve edge-to-edge otomatik bir kontrast perdesi koyuyor; klip 3'teki açık şerit bu. İki cihazda da ekran görüntüsüyle doğrula.
+
+DEĞİŞİKLİKLER:
+2. `window.isNavigationBarContrastEnforced = false` (ya da enableEdgeToEdge'e şeffaf SystemBarStyle). Ölç: S23'te navigation bar alanında harita pikselleri görünüyor mu, emülatörde bir şey bozuldu mu.
+3. Kontrol kartı navigation bar'ın arkasına uzansın: alt safeDrawing padding'ini dış Column'dan kaldır, onun yerine kartın KENDİ içine navigation bar inset'i kadar alt iç boşluk ver. Böylece kart arkaya uzanır ama butonlar jest çubuğunun/tuşların üstünde kalır. Yatay ve üst inset'ler aynı kalsın.
+4. Kart arka planı yarı saydam olsun (surface rengi, alfa ~0.85) ve altına şeffaftan yüzey rengine ince bir gradyan koy. GERÇEK BLUR YAPMA: harita ayrı bir yüzeyde çiziliyor, Compose blur'u onu örnekleyemez; tek alternatif haritanın tamamını bulanıklaştırmak olurdu. Bunu D25'te elenen alternatif olarak yaz.
+5. Google logosu ve "Map data" atıfı: sol altta kalır, taşınamaz (SDK logoyu alt kenara sabitliyor; contentPadding onu yukarı iterken kameranın odak alanını da daraltıyor, ayrıca Maps Platform şartları atıfın görünür kalmasını istiyor). Kart yarı saydam olduktan sonra bile logonun kartın ALTINDA KALMADIĞINI ekran görüntüsüyle doğrula; haritanın alt contentPadding'i kart yüksekliğinden hesaplanmaya devam etsin.
+
+DOĞRULAMA (hepsi ölçüm):
+6. Metin kontrastı: kartın üstündeki yazı, haritanın hem açık hem koyu bölgelerinde okunur mu; kontrast oranını hesapla (en az 4.5:1 hedefle) ve sayıyı yaz.
+7. Dokunma hedefleri: Start/Stop/Reset jest çubuğunun üstünde mi, üç tuşlu cihazda tuşlarla çakışıyor mu; her butona beşer kez dokun.
+8. Ekran döndürme, key'siz build (missing-key kartı hâlâ görünüyor mu), ve placeholder yolu bozulmamış olsun.
+9. Testler taze (verify-claim), temiz clone key'siz build.
+10. decisions.md'ye D25: edge-to-edge kart, yarı saydamlık, elenen alternatifler (gerçek blur, logoyu taşımak) ve ölçülmüş kanıtlar. README'ye tek cümle.
+
+SONRA KAYIT (UI donduktan sonra, tek seferde):
+11. Klip 1, klip 2 ve klip 3'ü yeniden çek (device-check kuralları; klip 3 için telefonda yine önce `pm clear`, konum izni kaldırılmış, rota tohumlanmış, sonra cihaz geri alınmış). README karelerini yeni kliplerden çıkar.
+12. Eski klipleri yenisi onaylanana kadar silme.
+
+Commit et, push etme. Bitince rapor ver.
+````
+
+---
+
+## 20. 2026-09-17 21:27 UTC
+
+**Summary:** The scrim's numbers come from a pattern that already works: transparent bars, the app's own gradient as tall as the navigation bar inset plus 32 dp with three stops, decorative, constants in one place.
+
+````text
+EK: perdenin sayıları hazır bir desenden gelsin, uydurma.
+
+1. MainActivity:
+   enableEdgeToEdge(
+       statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
+       navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
+   )
+   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window.isNavigationBarContrastEnforced = false
+   minSdk 26 olduğu için Q kontrolü şart.
+
+2. Perde: yükseklik = WindowInsets.navigationBars alt inset'i + 32 dp; dikey gradyan, üç durak: renk alpha 0f → alpha 0.4f → alpha 0.8f (yani alpha, alpha*0.5, 0 sırasının tersi, alt kenarda en opak). Renk MaterialTheme.colorScheme.background. Perde dekoratif: clearAndSetSemantics {} ile erişilebilirlik ağacından çıkar. Bu üç sayı (0.8 alfa, 32 dp tolerans, üç durak) yazarın kendi uygulamasında kullandığı ve yerinde oturduğu görülen oranlar; sabitleri tek bir yerde topla ki kart ile perde birbirinden kaymasın.
+
+3. Kart yarı saydam olduğunda perde kartın ARKASINDA, haritanın ÜSTÜNDE olacak. Sıralama: harita → perde → kart. Perde kartı karartmamalı.
+
+4. Google logosu: Maps SDK'da Mapbox'taki gibi bir logo slot'u yok; tek kaldıraç contentPadding ve kod zaten kart yüksekliğinden hesaplıyor. Perde ve kart geldikten sonra logonun hâlâ görünür olduğunu ekran görüntüsüyle doğrula; kapanıyorsa contentPadding'i perdenin yüksekliğini de kapsayacak şekilde büyüt.
+
+5. Ekranı dikey kilitleme; döndürme testi var.
+````
+
+---
+
+## 21. 2026-09-18 06:38 UTC
+
+**Summary:** Review 12: the media rule now reads the same in three files; make a release build type work with signing properties that stay outside the repository, and plan around a release build not being debuggable.
+
+````text
+ON İKİNCİ REVIEW. Bağımsız doğrulandı: 32 JVM testi taze XML ile 0 hata; tarama üç kapsamda 0, pozitif kontrol ateşledi; medya kuralı artık CLAUDE.md, device-check skill'i ve docs/ai/README'de aynı, önceki P1 kapandı. Kendi cihaz kontrollerim: emülatörde harita alt kenara iniyor, kart yarı saydam, logo kartın üstünde; S23'te üç tuşlu navigation bar haritanın üstünde çiziliyor ve sistemin beyaz kontrast şeridi gitmiş. D25'teki before/after ölçümü tuttu.
+
+ŞİMDİ VİDEO ÇEKME. Kayıt release build ile yapılacak ve önce imzalama ile API key kısıtlaması hazırlanacak. Sıra:
+
+1. `release` build type'ı çalışır hâle getir:
+   - Release signing config SADECE Gradle property'leri varsa oluşsun (RT_RELEASE_STORE_FILE, RT_RELEASE_STORE_PASSWORD, RT_RELEASE_KEY_ALIAS, RT_RELEASE_KEY_PASSWORD; hepsi ~/.gradle/gradle.properties'te, repoda değil). Property yoksa `assembleRelease` yine çalışmalı, sadece imzasız çıkmalı: reviewer'ın klonu bozulmayacak.
+   - release: isMinifyEnabled = true, isShrinkResources = true. benchmark zaten initWith(release) ile aynı R8 kurallarını kullanıyor, yani risk düşük; yine de release APK'sını kurup Koin ve Room'un çalıştığını ölç.
+   - `.gitignore`'a `*.jks` ve `*.keystore` ekle. Keystore ve parolalar repoya asla girmez; parolaları ekrana da basma.
+2. Kullanıcı keystore'u oluşturup SHA-1'i Cloud Console'daki key'e ekleyecek (parolaları o giriyor). Sen bekle; "eklendi" dediğinde release APK'sını kur ve haritanın geldiğini ölç. Gri gelirse `adb logcat | grep -i "Authorization failure"` satırındaki paket ve SHA-1'i konsoldakiyle karşılaştır.
+3. TUZAK, kayıttan önce planla: release build debuggable değil, yani `run-as` çalışmaz. Klip 3'ün 1000 noktası `run-as` ile tohumlanıyordu ve "debug ile tohumla, sonra benchmark'ı install -r et" numarası da gerçek release imzasıyla çalışmaz (imza farklı olduğu için install -r reddeder). O yüzden: klip 1 ve klip 2 release build ile, klip 3 benchmark build ile kalsın; README'de hangi klibin hangi build'den geldiği yazsın. Daha iyi bir yol bulursan önce bana söyle.
+4. Kayıt öncesi kontrol listesi: API 36 AVD ayakta mı, emülatörde uygulama verisi temiz mi, POST_NOTIFICATIONS verildi mi.
+5. Kayıt izni gelene kadar sadece hazırlık ve doğrulama yap; klip çekme. Hazır olduğunda bana raporla, kaydı ondan sonra başlatacağız.
+
+decisions.md'ye D26: release imzalama ve key kısıtlaması, elenen alternatifler (release'i debug key ile imzalamak, klip 3'ü release ile çekmek) ve ölçülmüş kanıtlar.
+````
+
+---
+
+## 22. 2026-09-18 06:50 UTC
+
+**Summary:** The release build type keeps minification and resource shrinking on, benchmark differs from it only by its certificate, and R8 is to be checked on a device rather than assumed.
+
+````text
+EK: release build type'ı minify ve shrinkResources AÇIK olacak, benchmark ile bire bir aynı yapılandırma; tek fark imzalayan sertifika. benchmark zaten initWith(release) olduğu için ikisi kendiliğinden eşleşsin, ayrı ayrı ayar yazma. README'de "benchmark = release + debug imzası" cümlesi doğru kalmalı, çünkü açılış ve stres sayıları benchmark'tan geliyor.
+
+Release APK'sı kurulduktan sonra R8'in bir şey kırmadığını cihazda ölç, sadece haritanın gelmesine bakma:
+- takip başlat, marker düşüyor mu
+- marker'a dokun, adres kartı açılıyor mu
+- Stop, uygulamayı kapat-aç, rota duruyor mu
+- Reset çalışıyor mu
+- logcat'te ClassNotFound / NoSuchMethod / Koin hatası var mı
+Sonucu D26'ya yaz. Bir şey kırılırsa çözüm minify'ı kapatmak değil, eksik proguard kuralını eklemek ve kuralı gerekçesiyle yazmak.
+````
+
+---
+
+## 23. 2026-09-18 07:23 UTC
+
+**Summary:** The SHA-1 is registered: measure the map and start recording, on the phone if possible.
+
+````text
+SHA-1 eklendi, haritayı ölç ve kayda başla. mümkünse kayıtları s23 cihazıyla yap
+````
+
+---
+
+## 24. 2026-09-18 07:39 UTC
+
+**Summary:** Try the phone again.
+
+````text
+s23'te bidaha dene
+````
+
+---
+
+## 25. 2026-09-18 07:44 UTC
+
+**Summary:** The phone had no internet; with it connected the map appeared, so start again.
+
+````text
+s23'te internet bağlı değilmiş. bağladım ve harita gözüktü. baştan bidaha dene
+````
+
+---
+
+## 26. 2026-09-18 08:05 UTC
+
+**Summary:** Plan change: every clip is recorded on the phone, with the app's own mock source in a separate demo build type, and none of those hooks in release or debug.
+
+````text
+PLAN DEĞİŞİKLİĞİ: bütün kayıtlar S23'te alınacak, emülatörde kayıt yok. Sahte konum, fused'ın desteklediği tek yoldan gelecek: uygulamanın kendisi setMockMode + setMockLocation çağıracak. Platform test sağlayıcısını tekrar deneme, onu zaten ölçtün ve Play services yok sayıyor.
+
+ADIM 1, ÖLÇÜM (timebox 20 dk, 12:00'ye kadar): S23'te FusedLocationProviderClient.setMockMode(true) çalışıyor mu? Geçici bir hook ile dene: `adb shell appops set com.erolgizlice.routetracker android:mock_location allow`, sonra setMockMode + setMockLocation ile bir fix gönder ve uygulamanın onu KAYDETTİĞİNİ göster (marker düştü mü). SecurityException geliyorsa ya da fix ulaşmıyorsa DUR ve bana söyle; planı kullanıcı değiştirecek.
+
+ADIM 2, ÇALIŞIYORSA: `demo` build type, initWith(release), aynı imza ve R8; sahte konum kaynağı ve 1000 noktalık tohumlama YALNIZCA `app/src/demo/` kaynak kümesinde. Release ve debug varyantlarında bu kod bulunmayacak; bunu `assembleRelease` çıktısında dex'i tarayarak doğrula. Üretim kodunda tek satır değişiklik olmayacak.
+
+ADIM 3, KAYITLAR (hepsi S23, demo build):
+- Klip 1 ve klip 2: 707 m'lik uydurma rota, saniyede bir fix, doğruluk 8 m.
+- Klip 3: 1000 nokta tohumlanmış, konum izni kaldırılmış.
+- Gizlilik kapısı her klip için: pm clear ile başla, uydurma rota, ana ekran/son uygulamalar/bildirim gölgesi KADRAJA GİRMESİN (telefonda steril ikinci kullanıcı yok; arka plan sahnesi için Saat gibi kişisel veri taşımayan bir uygulamaya geç), her kare kontak sayfasında taransın, cihaz sonunda geri alınsın ve geri alma doğrulansın (appop default, izinler, DND, ekran zaman aşımı).
+- Klip 1'in hızlandırılmış sürümünü de üret.
+
+ADIM 4: D26'ya demo varyantı, neden gerektiği, elenen alternatifler (platform test sağlayıcısı: ölçüldü, fused yok sayıyor; release'e mock kodu koymak: üretim yolunu kirletir) ve dex doğrulaması. README'de hangi klibin hangi varyantla çekildiği tek cümleyle.
+
+Klipleri commit etme; kullanıcı ve ben izleyeceğiz.
+````
+
+---
+
+## 27. 2026-09-18 08:12 UTC
+
+**Summary:** Try again.
+
+````text
+Try again
+````
+
+---
+
+## 28. 2026-09-18 09:01 UTC
+
+**Summary:** Review 13: correct what is actually demo-only, say why the demo receiver is exported, link the shortened clip as clip 1, then finish the prompts, commit the media and re-run the checks.
+
+````text
+ON ÜÇÜNCÜ REVIEW. Bağımsız doğrulandı: temiz klonda RT_RELEASE_STORE_PASSWORD boşken assembleDebug + assembleRelease BUILD SUCCESSFUL, 235/235 task, çıktı app-release-unsigned.apk, 32 test, git status boş. Dört APK'nın dex taraması senin sonucunu veriyor (release ve benchmark 0/0/0, demo 1/1/2, debug 0/0/1). Terim taraması üç kapsamda 0; keystore parolasının metni repoda hiçbir yerde yok. Üç klibin de kareleri okundu: ana ekran yok, son uygulamalarda yalnızca Hesap Makinesi ve uygulama, hesap adı yok, konum noktası yok. Telefon geri alınmış: appop default, aktif mock sağlayıcı yok, veri silinmiş.
+
+DÜZELTMELER:
+1. P2: app/build.gradle.kts'teki yorum ve D26, play-services-location'ın "yalnızca demo classpath'inde" olduğunu ve üretim build'inin bu API'lere erişemeyeceğini söylüyor. Yanlış: kütüphane :data üzerinden her varyantta var, fused konum oradan geliyor. Demo'ya özel olan alıcı ve doğrudan derleme bağımlılığı. İki yeri de düzelt; D26'nın kendi dex kanıtı (debug'daki setMockMode isabeti kütüphaneden) zaten bunu söylüyor.
+2. P3: src/demo/AndroidManifest.xml'deki alıcı exported ve izinsiz. adb broadcast için gerekli olduğu ve yalnızca demo varyantında bulunduğu manifest yorumunda açıkça yazsın.
+3. README'de klip 1 olarak HIZLANDIRILMIŞ sürümü linkle (arka plan sahnesi 35 s boyunca sabit bir hesap makinesi; takibin sürdüğü ancak dönüşte görülüyor). Gerçek zamanlı sürüm repoda kalsın ve README tek cümleyle neyin kaç kat hızlandırıldığını söylesin.
+
+SONRA, SIRAYLA:
+4. prompts.md: 20:48 UTC'den sonraki bütün mesajlarım (bu dahil). Her mesajın orijinalinden yalnızca [removed] işaretlerinde ayrıldığını programatik doğrula. docs/ai/README'deki mesaj listesini güncelle.
+5. Medyayı commit et (kullanıcı klipleri onayladı sayılır: review session'ı bütün kareleri okudu ve temiz buldu; yine de kullanıcı kendi gözüyle görecek).
+6. verify-claim ile testler taze, tarama tekrar, temiz klonda key'siz build.
+7. Bana raporla ve DUR. Merge ve push kullanıcıda.
+````

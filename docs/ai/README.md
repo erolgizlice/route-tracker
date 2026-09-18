@@ -24,10 +24,11 @@ commit carries a `Co-Authored-By: Claude Opus 5` trailer.
    out to be invalid, go to the verification log in `docs/decisions.md`.
 5. **Independent re-measurement.** At each milestone, the reviewer session re-ran the claims itself: test
    counts, mutations, a scan for sensitive terms, and on-device behaviour. Its findings reached the working
-   session as the author's messages ([`prompts.md`](prompts.md), messages 3–7, 10, 11 and 13) and were fixed
-   in follow-up commits. Those messages, like the delivery brief (message 12) and the two briefs for the
-   final round (messages 16 and 17), were prepared in the reviewer session, and the author decided what to
-   send.
+   session as the author's messages ([`prompts.md`](prompts.md), messages 3–7, 10, 11, 13, 18, 21 and 28)
+   and were fixed in follow-up commits. Those messages, like the delivery brief (message 12) and the briefs
+   for the last rounds (messages 16, 17, 19, 20, 22 and 26), were prepared in the reviewer session, and the
+   author decided what to send. Messages the author sent while the assistant was still working are in the
+   transcript as queued commands; they are included, in the order they were sent.
 6. **Human review before publishing.** Until the morning of 2026-09-17 the assistant also pushed. From then on
    it only committed; the author reviewed each commit locally and pushed.
 
