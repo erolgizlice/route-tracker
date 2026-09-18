@@ -6,11 +6,11 @@ marker. This is what that costs, measured, and what the measurement does not say
 The markers themselves are described in [D23](../decisions.md#d23-route-markers-are-four-bitmaps-shared-by-every-marker):
 each of the four looks is one bitmap, drawn once and shared by every marker that uses it.
 
-- **Video:** [`docs/media/clip3-stress.mp4`](../media/clip3-stress.mp4) - 15 s on a Galaxy S23, starting
-  with a cold start: the app opens with a thousand markers already stored, and is then panned and zoomed.
-  Recorded with the location permission revoked, so there is no my-location dot and no real position on
-  screen; the route is a made-up one written into the database by the `demo` build (D26). The numbers in
-  the tables below come from that same run.
+- **Preview:** [`docs/media/clip3-stress-preview.gif`](../media/clip3-stress-preview.gif) - eight seconds of
+  the panning and zooming, cut from a 15 s take on a Galaxy S23 that began with a cold start: the app opened
+  with a thousand markers already stored. The take was recorded with the location permission revoked, so
+  there was no my-location dot and no real position on screen; the route is a made-up one written into the
+  database by the `demo` build (D26). The numbers in the tables below come from that same run.
 
 ## Method
 

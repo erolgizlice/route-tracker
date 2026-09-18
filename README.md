@@ -14,41 +14,41 @@ Three clips, all recorded on a **Samsung Galaxy S23** (Android 16) with the `dem
 with the same certificate and the same R8 output, plus one source set that release does not have - it can
 feed the fused location provider with mock fixes and seed a route (D26). The route on screen is made-up:
 707 m along İstiklal Caddesi, Istanbul, from Taksim to Galatasaray, fed one fix per second at about
-11 m per second with an accuracy of 8 m. All three are a constant 30 frames per second. Clips 2 and 3 play
-in real time from beginning to end; clip 1 does too, apart from the one stretch named below.
+11 m per second with an accuracy of 8 m. Every take was a constant 30 frames per second, and real time from
+beginning to end; only the previews below are sped up, and each one says by how much.
 
-GitHub does not play a video that lives in a repository inside a README - the link opens the file's own
-page, which refuses to show a file this size - so each clip has a short GIF preview here and the full clip
-is one click below it.
+Each clip is here as a short GIF, so it plays in the README itself; GitHub does not play a video that lives
+in a repository. The recordings themselves are not in the repository - what each one showed is written under
+its preview, and the measurements behind them are in the verification log of `docs/decisions.md`.
 
 **Clip 1: fresh install, precise location, start, walk, another app in front, back to the route.**
 
 <img src="docs/media/clip1-tracking-preview.gif" width="220" alt="Preview of clip 1: the map follows the walk along İstiklal Caddesi while four markers appear one after another and the count in the control bar rises">
 
-Full clip: [`clip1-tracking-fast.mp4`](docs/media/clip1-tracking-fast.mp4) (63 s). The stretch with the
-calculator in front, from 47 s to 87 s of the take, plays at 4×: nothing moves on screen there, and that
-tracking continued is only visible on the way back. The unedited take is in the repository as well:
-[`clip1-tracking.mp4`](docs/media/clip1-tracking.mp4) (93 s, real time throughout). The preview is forty
-seconds of the walk at about 3×, which is what it takes to fit four markers into twelve seconds; in the
-clip itself they land ten seconds apart.
+The preview is forty seconds of the walk at about 3×, which is what it takes to fit four markers into
+twelve seconds; in the recording they land ten seconds apart. The take ran 93 s: a fresh install, the
+system permission dialog, Start, the walk, then a calculator in front for forty seconds while tracking
+continued - nothing moves on screen there - and the three markers that were waiting when the app came
+back.
 
 **Clip 2: the address of a tapped marker, stop, the app killed and reopened with the route kept, reset.**
 
 <img src="docs/media/clip2-address-preview.gif" width="220" alt="Preview of clip 2: a marker is tapped, turns blue, and the card with its address slides up from the bottom">
 
-Full clip: [`clip2-address-stop-reset.mp4`](docs/media/clip2-address-stop-reset.mp4) (33 s). The preview is
-the first eight seconds of it, in real time: the tap on a marker and the address that follows.
+The preview is the first eight seconds of the take, in real time: the tap on a marker and the address that
+follows. The take ran 33 s and went on to Stop, the app killed and reopened with the route still there, and
+Reset.
 
 **Clip 3: a thousand markers, from a cold start, panned and zoomed.**
 
 <img src="docs/media/clip3-stress-preview.gif" width="220" alt="Preview of clip 3: a spiral of a thousand markers on the map, panned and zoomed">
 
-Full clip: [`clip3-stress.mp4`](docs/media/clip3-stress.mp4) (15 s). It starts with the app being opened, so
-the wait for a thousand stored markers is on screen: 135 ms to the first frame and 731 ms until they are all
-drawn, measured in the same session. Recorded with the location permission revoked, so no real position can
-be on screen; the rest of the numbers are in [`docs/stress/README.md`](docs/stress/README.md). The preview is
-eight seconds of the panning and zooming, in real time but at 6 frames per second - a GIF of a moving map
-cannot be both small and smooth, and the frame statistics, not the preview, are what say it was smooth.
+The preview is eight seconds of the panning and zooming, in real time but at 6 frames per second - a GIF of a
+moving map cannot be both small and smooth, and the frame statistics, not the preview, are what say it was
+smooth. The take began with the app being opened, so the wait for a thousand stored markers was on screen:
+135 ms to the first frame and 731 ms until they were all drawn, measured in the same session. It was recorded
+with the location permission revoked, so no real position could be on screen; the numbers are in
+[`docs/stress/README.md`](docs/stress/README.md).
 
 While the app is in the background in clip 1, a calculator is in front: the phone's home screen, its
 recents and its notification shade stay out of frame, because they carry the tester's own data. The system
