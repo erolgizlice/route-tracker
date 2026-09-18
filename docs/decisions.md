@@ -86,14 +86,39 @@ says how it was verified:
 - **Evidence:** Measured in the probe project: the `:core` classpath contained no Android artifacts
   and produced Java 17 bytecode (major version 61).
 
-### D7. MVI with one state and one entry point; Koin for injection
+### D7. MVI with one state, one entry point and a pure reducer; Koin for injection
 
 - **Decision:** the screen observes one `StateFlow<TrackingState>` and sends every user action through
-  `onIntent(TrackingIntent)`. The selected marker is stored as an id and resolved against the current
-  points, so a route reset closes the details card without any extra code.
+  `onIntent(TrackingIntent)`; the one-off actions only the UI can perform travel back on their own effect
+  channel. Every transition an intent causes is one pure function - `ScreenState.reduce(intent, location)`
+  in `TrackingReducer.kt` - with no Android, no coroutines and no repository in it. What the platform says
+  about location is read once per intent and handed in as a `LocationSnapshot(hasPrecise, hasAny,
+  isEnabled)`. The side effects that belong to a transition - starting or stopping the service, resetting
+  the route, resolving an address, sending an effect - stay in the ViewModel and run after the reduction.
+  The selected marker is stored as an id and resolved against the current points, so a route reset closes
+  the details card without any extra code.
 - **Rationale:** the team's stack (MVI, Koin, Flow). One state object keeps rotation and process
-  recreation to a single re-render.
-- **Evidence:** Reasoned.
+  recreation to a single re-render. And the transitions are where the decisions are: the permission ladder
+  of D18 - when a false rationale really means "blocked" - is a rule, not a call to the platform, and while
+  it lived between `locationAccess` calls inside the ViewModel the only way to check it was on a device.
+  As a pure function it is eight lines of JVM test.
+- **Rejected:** leaving the transitions inside the `when` in `onIntent`, each branch doing
+  `screen.update { copy(...) }` next to its own side effect. That is what this was until now. It works and
+  it is short, but the rules in it can only be reached through a ViewModel, a scope and four fakes.
+- **Rejected:** a sealed `Command` type returned beside the new state, so that the effects were data too.
+  The ViewModel's `when` already says what each intent does; a second hierarchy would have to be kept in
+  step with the first, and no test becomes possible that is not possible now.
+- **Not a reduction:** two state changes do not answer an intent and stay in the ViewModel - the address
+  lookup's result, which depends on the route the screen does not own, and the stale session found once at
+  start (D17).
+- **Behaviour:** unchanged, deliberately. Two things about it are new and neither is visible: the snapshot
+  is read once per intent, so up to three cheap platform reads happen on intents that did not need them,
+  and a permission result now moves the state once instead of twice.
+- **Evidence:** Measured. 18 JVM tests in `TrackingReducerTest` cover the ladder, the device-wide switch,
+  resume, reset, selection and the intents that must not move the state. Two mutations: swapping
+  `PreciseLocationDenied` and `PreciseLocationBlocked` failed exactly the four tests about the approximate
+  ladder, and dropping the `!upgradeAlreadyRequested` term - the D18 subtlety - failed exactly the one test
+  that is about it. Restored with matching md5 and 18 / 18 again.
 
 ### D8. Koin starts in `Application`, not in an Activity
 
@@ -333,6 +358,13 @@ says how it was verified:
   would be slow). Also rejected: blocking the recording on the geocoder.
 - **Failure is an expected result:** no geocoder, a timeout (10 s), offline, or a rate limit returns null.
   The card then says the address is unavailable and offers Retry.
+- **Where the policy lives:** the policy itself - return the stored address if there is one, otherwise
+  resolve, write only with `UPDATE`, and return null when it cannot be resolved - sits in `:data`, in
+  `RoomAddressLookup`. It is really a use case, and it could have gone to `:core` as
+  `EnsureAddress(repository, resolver)`, where fakes would drive it on the JVM in milliseconds. It was left
+  in `:data` because its only dependencies are the DAO and the geocoder, and because the UPDATE-only
+  restriction (D14) belongs next to the DAO that has to honour it; the price is that this policy is covered
+  by the device measurements below rather than by a JVM test.
 - **Evidence:** Measured.
   - Galaxy S23: a marker recorded before geocoding existed showed its address about 0.3 s after the tap.
   - API 33 emulator: 2 of 5 points received their address when recorded, while the other 3 stayed empty.
@@ -615,3 +647,5 @@ says how it was verified:
 | 2026-09-18 | Demo hooks are not in release | Dex and manifest scan of the three APKs for `MockLocationReceiver`, `routetracker/demo` and `setMockMode`: release 0 / 0 / 0 with no receiver in the manifest; demo 1 / 1 / 2 with the receiver; debug 0 / 0 / 1, the library's own method name. Release and demo APKs differ by 48 bytes (D26) |
 | 2026-09-18 | The demo recorded on the phone | All three clips come from the Galaxy S23 with the demo build. Clip 1 (95.4 s): fresh install, the Turkish system permission dialog, 7 points recorded from mock fixes at 8.0 m accuracy, the calculator in front while tracking continued, then back to the app. Clip 2 (33.0 s): the address card, Stop, the app killed while the calculator was in front, reopened with the route kept, Reset to zero. Clip 3 (11.3 s): a thousand seeded points, location permission revoked, `dumpsys gfxinfo` from the same run reporting 573 frames with 2 janky (0.35 %) and a 99th percentile of 5 ms. Every clip is constant 30 fps with a largest frame gap of 33 ms |
 | 2026-09-18 | Privacy gate on the phone clips | Contact sheets at one frame per second or slower were read before anything was committed. The first clip 1 take was rejected: the Clock app, used as the background scene, showed the tester's own alarms. Re-recorded with the calculator, which shows only "0". No home screen, recents or notification shade in any frame, no account names, nothing identifying in the status bar. Afterwards the phone was restored and the restore verified: mock_location appop back to default, location permissions revoked, app data cleared, Do Not Disturb off, screen timeout back to 30 s, no active mock providers |
+| 2026-09-18 | The screen's transitions as a pure function (D7) | `ScreenState.reduce` was lifted out of the ViewModel with the behaviour unchanged, and 18 JVM tests written for it. Mutation: `PreciseLocationDenied` and `PreciseLocationBlocked` swapped in the approximate branch - compiled, and failed exactly the four tests about that ladder, each with the expected message. Mutation: the `!upgradeAlreadyRequested` term dropped from the same condition, which is the D18 subtlety - compiled, and failed exactly the one test that is about it. Restored with matching md5 and 18 / 18 again |
+| 2026-09-18 | Full suite after the reducer | Old results deleted and 0 remained. `:core:test :feature:tracking:testDebugUnitTest :data:connectedDebugAndroidTest --rerun-tasks --no-build-cache`: 73 actionable tasks, 73 executed, 0 FROM-CACHE, 56 / 56 from fresh XML with `stale_files=0` - 50 JVM tests and the 6 instrumented ones on the Galaxy S23 |

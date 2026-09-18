@@ -137,7 +137,10 @@ release build needs its own certificate registered on the Maps key, or the map s
   and the API key wiring.
 
 **MVI:** the screen renders one `StateFlow<TrackingState>` and sends every action through
-`onIntent(TrackingIntent)`. One-off actions, like the permission request, travel as effects (D7).
+`onIntent(TrackingIntent)`. One-off actions, like the permission request, travel as effects. The transitions
+themselves are one pure function, `ScreenState.reduce(intent, location)`: what the platform says about
+location comes in as a parameter, so the rules - including the permission ladder of D18 - are ordinary JVM
+tests. The side effects run after it, in the ViewModel (D7).
 
 **Room and DataStore:** the route is a list with queries, so it goes in Room, in insertion order (D9). The
 session is a single flag, so it goes in DataStore. A sticky restart reads it, because its `Intent` is null.

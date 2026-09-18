@@ -30,7 +30,9 @@ ANDROID_SERIAL=emulator-5554 ./gradlew :data:connectedDebugAndroidTest   # Room 
   ever; the build enforces this.
 - `:data`: Room route storage, DataStore session flag, `TrackingService` (fused location), notifications,
   Geocoder, `dataModule`.
-- `:feature:tracking`: Compose UI and the MVI `TrackingViewModel`. Depends on `:core` only.
+- `:feature:tracking`: Compose UI, the pure `ScreenState.reduce` in `TrackingReducer.kt`, and the
+  `TrackingViewModel` that drives it: one state, one `onIntent`, effects on their own channel (D7).
+  Depends on `:core` only.
 - `:app`: `Application` (starts Koin), `MainActivity`, API key wiring. The only module that sees everything.
 
 ## Invariants: do not break these
@@ -46,6 +48,11 @@ ANDROID_SERIAL=emulator-5554 ./gradlew :data:connectedDebugAndroidTest   # Room 
   instrumented `RouteDaoTest` covers it (D10). Run that test after any change to `RouteDao`.
 - **Starting tracking requires precise location; the service itself accepts either** (D16). After an
   approximate-only grant, a false rationale does not mean "blocked" until the upgrade was already asked (D18).
+- **State transitions live in `ScreenState.reduce`; side effects live in the ViewModel** (D7). The
+  reducer is pure - no Android, no coroutines, no repository - and everything it needs from the platform
+  arrives as a `LocationSnapshot`, read once per intent. A new rule about when the screen changes goes
+  there, with a JVM test that fails when the rule is broken; a new service call, lookup or effect goes in
+  the ViewModel's `when`, after the reduction.
 - **Kotlin stays at 2.4.20 or later.** Do not apply `org.jetbrains.kotlin.android`; AGP 9 has built-in Kotlin (D2).
 - A Compose library module needs both the `kotlin.compose` plugin and `buildFeatures.compose` (D3).
 
