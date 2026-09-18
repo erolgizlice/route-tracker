@@ -24,16 +24,6 @@ class TrackingViewModel(
     private val addressLookup: AddressLookup,
 ) : ViewModel() {
 
-    /** State owned by this screen; route and session state come from their own sources. */
-    private data class ScreenState(
-        val selectedPointId: Long? = null,
-        val addressStatus: AddressStatus = AddressStatus.Idle,
-        val hasLocationPermission: Boolean = false,
-        val issue: TrackingIssue? = null,
-        val isResetConfirmationVisible: Boolean = false,
-        val notice: TrackingNotice? = null,
-    )
-
     private val screen = MutableStateFlow(ScreenState(hasLocationPermission = locationAccess.hasAnyLocationPermission()))
 
     private val effectChannel = Channel<TrackingEffect>(Channel.BUFFERED)
@@ -64,13 +54,21 @@ class TrackingViewModel(
         }
     }
 
+    /**
+     * The one gate into this screen's state. The transition is [reduce]'s, pure and tested on the JVM; what
+     * is left here is the part that has to touch something outside: the service, the repository, the address
+     * lookup and the effect channel, all of them after the state has moved.
+     */
     fun onIntent(intent: TrackingIntent) {
+        val location = locationSnapshot()
+        screen.update { it.reduce(intent, location) }
         when (intent) {
             TrackingIntent.StartClicked ->
-                if (locationAccess.hasPreciseLocationPermission()) startIfLocationEnabled()
-                else sendEffect(TrackingEffect.RequestLocationPermissions)
+                if (location.canStartTracking()) trackingController.start()
+                else if (!location.hasPrecise) sendEffect(TrackingEffect.RequestLocationPermissions)
 
-            is TrackingIntent.PermissionResult -> onPermissionResult(intent.canAskAgain)
+            is TrackingIntent.PermissionResult -> if (location.canStartTracking()) trackingController.start()
+
             TrackingIntent.StopClicked -> trackingController.stop()
 
             TrackingIntent.IssueActionClicked -> when (screen.value.issue?.action) {
@@ -79,78 +77,37 @@ class TrackingViewModel(
                 IssueAction.OpenLocationSettings -> sendEffect(TrackingEffect.OpenLocationSettings)
                 null -> Unit
             }
-            TrackingIntent.IssueDismissed -> screen.update { it.copy(issue = null) }
-            TrackingIntent.ScreenResumed -> onScreenResumed()
 
-            TrackingIntent.ResetClicked -> screen.update { it.copy(isResetConfirmationVisible = true) }
-            TrackingIntent.ResetDismissed -> screen.update { it.copy(isResetConfirmationVisible = false) }
-            TrackingIntent.ResetConfirmed -> {
-                screen.update { it.copy(isResetConfirmationVisible = false) }
-                // Tracking, if on, continues: the next accurate fix starts the new route (D15).
-                viewModelScope.launch { routeRepository.reset() }
-            }
+            // Tracking, if on, continues: the next accurate fix starts the new route (D15).
+            TrackingIntent.ResetConfirmed -> viewModelScope.launch { routeRepository.reset() }
 
-            is TrackingIntent.MarkerClicked -> {
-                screen.update { it.copy(selectedPointId = intent.pointId, addressStatus = AddressStatus.Idle) }
-                resolveAddress(intent.pointId)
-            }
-            TrackingIntent.SelectionDismissed ->
-                screen.update { it.copy(selectedPointId = null, addressStatus = AddressStatus.Idle) }
+            is TrackingIntent.MarkerClicked -> resolveAddress(intent.pointId)
             TrackingIntent.RetryAddressClicked -> screen.value.selectedPointId?.let(::resolveAddress)
-            TrackingIntent.NoticeDismissed -> screen.update { it.copy(notice = null) }
+
+            TrackingIntent.IssueDismissed,
+            TrackingIntent.ScreenResumed,
+            TrackingIntent.ResetClicked,
+            TrackingIntent.ResetDismissed,
+            TrackingIntent.SelectionDismissed,
+            TrackingIntent.NoticeDismissed,
+            -> Unit
         }
     }
 
-    private fun onPermissionResult(canAskAgain: Boolean) {
-        val previousIssue = screen.value.issue
-        screen.update { it.copy(hasLocationPermission = locationAccess.hasAnyLocationPermission()) }
-        when {
-            locationAccess.hasPreciseLocationPermission() -> startIfLocationEnabled()
-            // Approximate location snaps to a grid of about 2 km: useless for a 100 m rule (D16).
-            locationAccess.hasAnyLocationPermission() -> {
-                // Measured on Android 16 (D18): right after the user picks "approximate", the rationale
-                // for FINE is already false, yet the system still shows the upgrade dialog once. So false
-                // means "blocked" only when this result answers a request that already asked to upgrade.
-                // Blocked counts too, or pressing Start while blocked would flip the card back to "Allow".
-                val upgradeAlreadyRequested = previousIssue == TrackingIssue.PreciseLocationDenied ||
-                    previousIssue == TrackingIssue.PreciseLocationBlocked
-                showIssue(
-                    if (canAskAgain || !upgradeAlreadyRequested) TrackingIssue.PreciseLocationDenied
-                    else TrackingIssue.PreciseLocationBlocked,
-                )
-            }
-            else -> showIssue(if (canAskAgain) TrackingIssue.LocationDenied else TrackingIssue.LocationBlocked)
-        }
-    }
-
-    private fun startIfLocationEnabled() {
-        if (!locationAccess.isLocationEnabled()) {
-            showIssue(TrackingIssue.LocationDisabled)
-            return
-        }
-        screen.update { it.copy(issue = null) }
-        trackingController.start()
-    }
-
-    /** The user may have changed permissions or the location switch in Settings while we were away. */
-    private fun onScreenResumed() {
-        screen.update { current ->
-            val resolved = when (current.issue) {
-                TrackingIssue.LocationDisabled -> locationAccess.isLocationEnabled()
-                null -> false
-                else -> locationAccess.hasPreciseLocationPermission()
-            }
-            current.copy(
-                hasLocationPermission = locationAccess.hasAnyLocationPermission(),
-                issue = current.issue.takeUnless { resolved },
-            )
-        }
-    }
+    /** Asked once per intent, so that every transition sees the same answers (D7). */
+    private fun locationSnapshot() = LocationSnapshot(
+        hasPrecise = locationAccess.hasPreciseLocationPermission(),
+        hasAny = locationAccess.hasAnyLocationPermission(),
+        isEnabled = locationAccess.isLocationEnabled(),
+    )
 
     /**
      * The address is normally resolved when the point is recorded. If that failed (offline, rate limited),
      * a tap tries again. The result is stored and reaches the card through the route flow; the lookup is
      * not cancelled when the card closes, so the stored address is not lost.
+     *
+     * Its two state changes are not a reduction: they answer the lookup, not an intent, and what they may
+     * do depends on the route, which this screen does not own.
      */
     private fun resolveAddress(pointId: Long) {
         val point = state.value.points.firstOrNull { it.id == pointId } ?: return
@@ -164,8 +121,6 @@ class TrackingViewModel(
             }
         }
     }
-
-    private fun showIssue(issue: TrackingIssue) = screen.update { it.copy(issue = issue) }
 
     private fun sendEffect(effect: TrackingEffect) {
         viewModelScope.launch { effectChannel.send(effect) }
