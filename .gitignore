@@ -6,6 +6,10 @@ build/
 # Local machine configuration — holds sdk.dir and MAPS_API_KEY, never committed
 local.properties
 
+# Signing material: the release keystore and its passwords stay on the author's machine
+*.jks
+*.keystore
+
 # IDE
 .idea/
 *.iml

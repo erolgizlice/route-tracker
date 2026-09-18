@@ -101,16 +101,24 @@ ANDROID_SERIAL=<device-serial> ./gradlew :data:connectedDebugAndroidTest   # 6 i
 adb -s <device-serial> install -r app/build/outputs/apk/debug/app-debug.apk
 
 ./gradlew assembleBenchmark        # release-like build for measurements
+./gradlew assembleRelease          # unsigned unless the signing properties are set (see below)
 ```
 
 On 2026-09-17 all 38 tests passed from freshly generated results (32 JVM, 6 on an API 36 emulator).
 Connected tests run on every attached device unless `ANDROID_SERIAL` names one. To move an emulator, use
 `adb emu geo fix <longitude> <latitude>` (longitude first).
 
-**The `benchmark` build type** exists because startup numbers from a debuggable build say little about what a
-user gets: no ahead-of-time compilation, no minification, and debug-only checks. It is release-like -
-minified, resources shrunk, not debuggable - but signed with the debug key, so the Maps key restricted to
-that certificate still works. It is a measurement tool, not a shipping build.
+**The `benchmark` build type** exists because startup numbers from a debuggable build say little about what
+a user gets: no ahead-of-time compilation, no minification, and debug-only checks. It is `release` plus one
+line - the debug signing config - so the Maps key restricted to that certificate still works; everything
+else, including minification and resource shrinking, is inherited with `initWith`, and the two APKs come out
+the same size to the byte (D26). It is a measurement tool, not a shipping build.
+
+**Signing a release build** needs four properties in `~/.gradle/gradle.properties`, never in the repository:
+`RT_RELEASE_STORE_FILE` (an absolute path), `RT_RELEASE_STORE_PASSWORD`, `RT_RELEASE_KEY_ALIAS` and
+`RT_RELEASE_KEY_PASSWORD`. Without them `assembleRelease` still works and produces an unsigned APK. A signed
+release build needs its own certificate registered on the Maps key, or the map stays grey and logcat says
+`Authorization failure`.
 
 ## Architecture
 

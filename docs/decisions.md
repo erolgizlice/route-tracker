@@ -488,6 +488,44 @@ says how it was verified:
     placeholder path were re-checked after the change: the card is drawn over the placeholder from the
     first frame, with the count showing 0 until the route is read.
 
+### D26. Release signing, and which build each clip comes from
+
+- **Decision:** a real `release` build type - minified, resources shrunk, not debuggable - signed from four
+  Gradle properties that live only in `~/.gradle/gradle.properties`: `RT_RELEASE_STORE_FILE`,
+  `RT_RELEASE_STORE_PASSWORD`, `RT_RELEASE_KEY_ALIAS`, `RT_RELEASE_KEY_PASSWORD`. If any of them is missing
+  or blank the signing config is **not created at all**, and `assembleRelease` still produces an unsigned
+  APK, so a reviewer's clone builds. `*.jks` and `*.keystore` are git-ignored; the keystore and its
+  passwords never enter the repository, and the passwords are never printed.
+- **`benchmark` is `release` plus one line:** `initWith(getByName("release"))` and the debug signing
+  config. Nothing else is set twice, so the two cannot drift apart - which is what makes the startup and
+  stress numbers, all measured on `benchmark`, worth anything for a release build.
+- **Rejected: signing the release build with the debug key.** The Maps key is restricted to a certificate,
+  and reusing the debug one would have avoided a Cloud Console change. But then "release" would not be a
+  release: the debug keystore ships with the SDK, with the same password for everyone, so anyone could sign
+  an update for this package.
+- **Rejected: recording the thousand-marker clip with the release build.** Those points are written
+  straight into the app's database, which needs `run-as`, which needs a debuggable build. Seeding with the
+  debug build and then updating to the release build does not work either: the signatures differ and the
+  install is refused. So clip 3 stays on the `benchmark` build - the same code and the same R8 output - and
+  the README says which clip came from which build.
+- **Evidence:** Measured (verification log, "Release build on the emulator").
+  - `assembleRelease` with the four properties present produces `app-release.apk`, signed with certificate
+    `B9:E3:24:73:94:3C:19:D0:F5:17:1E:D1:55:2F:78:AB:78:05:2D:AA`; with them absent, the same task produces
+    `app-release-unsigned.apk` and still succeeds. That was checked with a Gradle home that has no such
+    properties, not by editing the author's own.
+  - `release` and `benchmark` produce APKs of exactly the same size, 1 433 090 bytes, with the same dex
+    size, 1 954 484 bytes. Only the certificate differs: the debug one is
+    `A0:96:6F:AE:45:69:C0:71:FB:F1:AF:E8:02:20:FC:D3:AD:05:A6:7C`.
+  - **R8 broke nothing**, checked on the signed release APK on the API 36 emulator: Start put the service
+    in the foreground; a 330 m scripted walk recorded 3 points; addresses were resolved and stored (for
+    example "Cihangir, Sıraselviler Cd. No:9-2"); Stop ended the session; a force-stop and reopen kept the
+    route; Reset emptied it. The log holds no `ClassNotFoundException`, `NoSuchMethodError`,
+    `NoSuchFieldError`, `NoClassDefFoundError` or Koin failure, and no `FATAL` line. No extra ProGuard rule
+    was needed; Room and Koin bring their own.
+  - The map is grey in that build until the release certificate is registered, and the log says so exactly:
+    `Authorization failure` followed by `Android Application (<cert_fingerprint>;<package_name>):` with the
+    fingerprint above and `com.erolgizlice.routetracker`.
+
 ---
 
 ## Verification log
@@ -549,3 +587,4 @@ says how it was verified:
 | 2026-09-17 | The marker count while the route is read | Measured frame by frame in clip 2 rather than estimated: the crop of the count line matches "0 markers" from 21.75 s to 22.30 s and "7 markers" from 22.30 s, so the wrong count is on screen for 0.55 s, after 0.65 s of launch screen. A review estimate of about 2 s covered the whole reopen, from the tap to the route on screen (D24) |
 | 2026-09-18 | Edge-to-edge bottom card | Before: emulator rows y=2240-2339 varied across the width (deviation 11-21), so the map already ran behind the gesture bar; the S23's same rows were a flat RGB (252, 253, 252) contrast scrim (deviation 1-9). After turning the scrim off and extending the overlay: both devices show map pixels there. Contrast 19.2 : 1 on the card's text and 10.0 : 1 at the darkest point where the map shows through; the Google logo's lowest pixel stays about 200 px above the card; Start and Reset 5 / 5 on the S23, Start, Stop and Reset 5 / 5 each on the emulator; rotation, the keyless build and the placeholder path unchanged (D25) |
 | 2026-09-18 | The app draws the navigation-bar scrim itself | Replaced the 24 dp fade above the card with a scrim between the map and the card: as tall as the navigation bar inset plus 32 dp, the theme's background colour at alpha 0 / 0.4 / 0.8 downwards, `clearAndSetSemantics {}`. Re-measured after the change: Google logo's lowest pixel y=1884 (S23) and y=1894 (emulator) against a card starting at y=2023 / y=2064 and a 154 px scrim; card text contrast 19.0-19.2 : 1 and 10.0 : 1 where the map shows through; Start, Stop and Reset 5 / 5 each on the emulator and Start and Reset 5 / 5 on the S23; the scrim's node carries no text, description, focus or click; landscape and the keyless build unchanged; 38 / 38 tests from fresh XML (D25) |
+| 2026-09-18 | Release build on the emulator | `assembleRelease` signed from properties that live outside the repository; without them the same task produces an unsigned APK (checked with a Gradle home that has none). `release` and `benchmark` APKs are the same size to the byte, 1 433 090, with the same 1 954 484 byte dex; only the certificate differs. On the signed release APK: foreground service after Start, 3 points from a 330 m walk, addresses resolved and stored, Stop ended the session, force-stop and reopen kept the route, Reset emptied it, and the log had no ClassNotFound / NoSuchMethod / NoSuchField / NoClassDefFound / Koin error and no FATAL. An earlier reading of "no addresses" was invalid: the emulator had just booted and its network was not up yet; repeated with the network confirmed, the addresses were there (D26) |

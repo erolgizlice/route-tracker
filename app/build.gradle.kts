@@ -17,6 +17,17 @@ val mapsApiKey: String = providers
     .getOrElse("")
     .trim()
 
+// Release signing comes from ~/.gradle/gradle.properties on the author's machine, never from the
+// repository. When the properties are absent the signing config is not created at all, so a clone still
+// builds `assembleRelease` - unsigned (D26). Absolute paths only; `file()` does not expand `~`.
+val releaseSigning = listOf(
+    "RT_RELEASE_STORE_FILE",
+    "RT_RELEASE_STORE_PASSWORD",
+    "RT_RELEASE_KEY_ALIAS",
+    "RT_RELEASE_KEY_PASSWORD",
+).map { providers.gradleProperty(it) }
+val hasReleaseSigning: Boolean = releaseSigning.all { it.isPresent && it.get().isNotBlank() }
+
 android {
     namespace = "com.erolgizlice.routetracker"
     compileSdk {
@@ -37,16 +48,32 @@ android {
         compose = true
         buildConfig = true
     }
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                val (store, storePass, alias, keyPass) = releaseSigning.map { it.get() }
+                storeFile = file(store)
+                storePassword = storePass
+                keyAlias = alias
+                keyPassword = keyPass
+            }
+        }
+    }
     buildTypes {
-        // A release-like build for startup measurements: minified, resources shrunk and not debuggable,
-        // but signed with the debug key, because the Maps key is restricted to the debug certificate.
-        create("benchmark") {
-            initWith(getByName("release"))
+        getByName("release") {
             isMinifyEnabled = true
             isShrinkResources = true
-            isDebuggable = false
-            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            // Unsigned without the properties: `assembleRelease` still has to work in a fresh clone.
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
+        }
+        // Release, with one difference: it is signed with the debug key, so the Maps key restricted to the
+        // debug certificate still works. `initWith` copies everything else - minify, resource shrinking,
+        // the ProGuard files, not debuggable - so the two cannot drift apart, which is what makes the
+        // startup and stress numbers from this build worth anything (D26).
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
             // The library modules have no benchmark build type; use their release variant.
             matchingFallbacks += listOf("release")
         }
