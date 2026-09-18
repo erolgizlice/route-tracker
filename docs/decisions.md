@@ -114,11 +114,14 @@ says how it was verified:
 - **Behaviour:** unchanged, deliberately. Two things about it are new and neither is visible: the snapshot
   is read once per intent, so up to three cheap platform reads happen on intents that did not need them,
   and a permission result now moves the state once instead of twice.
-- **Evidence:** Measured. 18 JVM tests in `TrackingReducerTest` cover the ladder, the device-wide switch,
+- **Evidence:** Measured, on the JVM and on the phone. 18 JVM tests in `TrackingReducerTest` cover the ladder, the device-wide switch,
   resume, reset, selection and the intents that must not move the state. Two mutations: swapping
   `PreciseLocationDenied` and `PreciseLocationBlocked` failed exactly the four tests about the approximate
   ladder, and dropping the `!upgradeAlreadyRequested` term - the D18 subtlety - failed exactly the one test
-  that is about it. Restored with matching md5 and 18 / 18 again.
+  that is about it. Restored with matching md5 and 18 / 18 again. The wiring from an intent to its effect
+  is what no test covers, so it was checked on the phone as well: the permission dialog, the "location is
+  off" card, a session recorded from mock fixes, an address, Stop, a restart that kept the route, and Reset
+  all behaved as before (verification log).
 
 ### D8. Koin starts in `Application`, not in an Activity
 
@@ -649,3 +652,4 @@ says how it was verified:
 | 2026-09-18 | Privacy gate on the phone clips | Contact sheets at one frame per second or slower were read before anything was committed. The first clip 1 take was rejected: the Clock app, used as the background scene, showed the tester's own alarms. Re-recorded with the calculator, which shows only "0". No home screen, recents or notification shade in any frame, no account names, nothing identifying in the status bar. Afterwards the phone was restored and the restore verified: mock_location appop back to default, location permissions revoked, app data cleared, Do Not Disturb off, screen timeout back to 30 s, no active mock providers |
 | 2026-09-18 | The screen's transitions as a pure function (D7) | `ScreenState.reduce` was lifted out of the ViewModel with the behaviour unchanged, and 18 JVM tests written for it. Mutation: `PreciseLocationDenied` and `PreciseLocationBlocked` swapped in the approximate branch - compiled, and failed exactly the four tests about that ladder, each with the expected message. Mutation: the `!upgradeAlreadyRequested` term dropped from the same condition, which is the D18 subtlety - compiled, and failed exactly the one test that is about it. Restored with matching md5 and 18 / 18 again |
 | 2026-09-18 | Full suite after the reducer | Old results deleted and 0 remained. `:core:test :feature:tracking:testDebugUnitTest :data:connectedDebugAndroidTest --rerun-tasks --no-build-cache`: 73 actionable tasks, 73 executed, 0 FROM-CACHE, 56 / 56 from fresh XML with `stale_files=0` - 50 JVM tests and the 6 instrumented ones on the Galaxy S23 |
+| 2026-09-18 | The refactored screen on the phone (D7) | Demo build carrying the reducer, every fix from its own mock source. Start with no permission opened the system dialog (`GrantPermissionsActivity`), and cancelling it left "Location permission needed"; with precise granted and the device-wide switch off, Start showed "Location is off" and started no service, and switching the location back on and returning to the screen cleared the card; a session on mock fixes recorded 3 points over 230 m, a marker's card showed its address, Close kept the session running, Stop ended it (`Ending session: stopped by the user`, 0 foreground services), force-stop and reopen kept the route, and Reset emptied it. No FATAL, no ClassNotFound / NoSuchMethod / Koin error. Restored afterwards and verified one item at a time: mock appop `default`, both location permissions revoked, app data cleared, the location switch back on |
